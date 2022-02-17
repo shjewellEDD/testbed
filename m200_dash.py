@@ -23,17 +23,17 @@ from dash import html as dhtml
 from dash import dcc, dash_table
 from dash.dependencies import Input, Output
 import plotly.express as px
-import plotly.graph_objects as go
+# import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
 
 #non-plotly imports
 import pandas as pd
-from lxml import html
+# from lxml import html
 import datetime
-from datetime import date
+# from datetime import date
 import requests
-import io
-import urllib
+# import io
+# import urllib
 
 prawlers = [{'label':   'M200 Eng', 'value': 'M200Eng'},
             {'label':   'M200 Sci', 'value': 'M200Sci'},
@@ -408,7 +408,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
                    {'name': select_var, 'id': select_var}]
 
         try:
-            t_mean = 'Average ' + select_var + ': ' + str(new_data.loc[:,select_var].mean())
+            t_mean = 'Average ' + select_var + ': ' + str(new_data.loc[:, select_var].mean())
         except TypeError:
             t_mean = ''
 
