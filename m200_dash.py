@@ -206,7 +206,7 @@ dataset_dict = {
 
 
 #eng_set = Dataset(set_meta['Eng']['url'])
-starting_set = 'Eng'
+starting_set = 'M200Eng'
 
 graph_config = {'modeBarButtonsToRemove' : ['hoverCompareCartesian','select2d', 'lasso2d'],
                 'doubleClick':  'reset+autosize', 'toImageButtonOptions': { 'height': None, 'width': None, },
@@ -288,6 +288,7 @@ app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
                 requests_pathname_prefix='/prawler/m200',
                 external_stylesheets=[dbc.themes.SLATE])
+server = app.server
 
 app.layout = dhtml.Div([
    #dbc.Container([
