@@ -35,11 +35,10 @@ import requests
 # import io
 # import urllib
 
-prawlers = [{'label':   'M200 Eng', 'value': 'M200Eng'},
-            {'label':   'M200 Sci', 'value': 'M200Sci'},
-            {'label':   'M200 Wind', 'value': 'M200Wind'},
-            {'label':   'M200 Temp/Humid', 'value': 'M200ATRH'},
-            {'label':   'M200 Baro', 'value': 'M200Baro'}
+prawlers = [{'label':   'Eng', 'value': 'Eng'},
+            {'label':   'Sci', 'value': 'Sci'},
+            {'label':   'Load', 'value': 'Load'},
+            {'label':   'Baro', 'value': 'Baro'}
             ]
 
 
@@ -197,11 +196,10 @@ Start Dashboard
 '''
 
 dataset_dict = {
-            'M200Eng': Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv'),
-            'M200Sci': Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWC_M200.csv'),
-            'M200Wind': Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_WIND.csv'),
-            'M200Baro': Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_BARO.csv'),
-            'M200ATRH': Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_ATRH.csv')
+            'Eng': Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/prawler_eng_TELONAS2.csv'),
+            'Sci': Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELONAS2_PRAWC_NAS2.csv'),
+            'Load': Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELONAS2_LOAD_NAS2.csv'),
+            'Baro': Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/prawler_baro_TELONAS2.csv')
             }
 
 
@@ -286,12 +284,12 @@ graph_card = dbc.Card(
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/prawler/m200',
+                requests_pathname_prefix='/prawler/telonas2',
                 external_stylesheets=[dbc.themes.SLATE])
 
 app.layout = dhtml.Div([
    #dbc.Container([
-            dbc.Row([dhtml.H1('Prawler M200y')]),
+            dbc.Row([dhtml.H1('Prawler TELONAS2')]),
             dbc.Row([
                 dbc.Col(graph_card, width=9),
                 dbc.Col(children=[date_card,
