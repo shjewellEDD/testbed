@@ -1,7 +1,6 @@
 
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 import flask
-ru
 from m200_dash import server as m200
 from telonas2_dash import server as telo2
 
