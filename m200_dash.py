@@ -292,7 +292,7 @@ server = app.server
 
 app.layout = dhtml.Div([
    #dbc.Container([
-            dbc.Row([dhtml.H1('Prawler M200y')]),
+            dbc.Row([dhtml.H1('Prawler M200')]),
             dbc.Row([
                 dbc.Col(graph_card, width=9),
                 dbc.Col(children=[date_card,
