@@ -52,6 +52,7 @@ colors = {'background': '#111111', 'text': '#7FDBFF', 'light': '#7f7f7f'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
+                requests_pathname_prefix='/co2/real_time/',
                 external_stylesheets=[dbc.themes.SLATE])
 server = app.server
 

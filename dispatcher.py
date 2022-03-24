@@ -11,7 +11,6 @@ app = DispatcherMiddleware(landing, {
     '/prawler/m200': m200,
     '/prawler/telonas2': telo2,
     '/co2/real_time': co2rt,
-    '/co2/validation': co2val,
-    '/main': landing#,
-    #'/co2/validation': co2val
+    '/co2/validation': co2val#,
+#    '/main': landing
 })
