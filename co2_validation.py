@@ -17,13 +17,13 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dash import html as dhtml
 
-import erddap_importer as data_import
+import data_import
 
 state_select_vars = ['INSTRUMENT_STATE', 'last_ASVCO2_validation', 'CO2LastZero', 'ASVCO2_firmware',
                      'CO2DETECTOR_serialnumber', 'ASVCO2_ATRH_serialnumber', 'ASVCO2_O2_serialnumber',
                      'ASVCO2_vendor_name']
 
-set_url = '0'
+set_url = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/asvco2_gas_validation_summary_mirror.csv'
 #set_url =
 
 custom_sets = [{'label': 'XCO2 Mean',       'value': 'resids'},
@@ -57,7 +57,7 @@ tools_card = dbc.Card([
             dcc.Dropdown(
                 id="select_x",
                 options=custom_sets,
-                value= 'resids',
+                value='resids',
                 clearable=False
                 ),
            dhtml.Label(['']),
@@ -81,7 +81,7 @@ graph_card = dbc.Card(
 app.layout = dhtml.Div([
     dbc.Card(
         dbc.CardBody([
-            dbc.Row([dhtml.H1('AVSCO2')]),
+            dbc.Row([dhtml.H1('ASVCO2 Validation Set')]),
             dbc.Row([
                 dbc.Col(tools_card, width=3),
                 dbc.Col(graph_card, width=9)
@@ -225,7 +225,7 @@ def load_plot(plot_fig, start_date, end_date):
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
     data = dataset.ret_data(t_start=start_date, t_end=end_date)
-
+    print(plot_fig)
     plotters = switch_plot(plot_fig, data)
 
     plotters[0].update_layout(

@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dash import html as dhtml
 
-import erddap_importer as data_import
+import data_import
 
 rt_url1 = 'https://data.pmel.noaa.gov/generic/erddap/tabledap/sd_shakedown_collection.csv'
 rt_url2 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1067_2021_post_mission.csv'
@@ -53,7 +53,6 @@ colors = {'background': '#111111', 'text': '#7FDBFF', 'light': '#7f7f7f'}
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
 
 tools_card = dbc.Card(
     dbc.CardBody(

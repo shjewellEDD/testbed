@@ -58,11 +58,14 @@ external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
 
 
 fig = go.Figure(data=px.scatter_geo(
+    data_frame=df,
     lat=df['lat'],
     lon=df['lon'],
     size=df['size'],
+    size_max=5,
     opacity=1,
-    #hover_name=df.index,
+    #hover_data={'type': True, 'lat': False, 'lon': False},
+    hover_data={'size': False},
     color=df['type'],
     color_discrete_sequence=px.colors.qualitative.D3
 ))
@@ -76,6 +79,13 @@ fig.update_layout(
     plot_bgcolor=colors['background'],
     paper_bgcolor=colors['background'],
     font_color=colors['text'],
+    legend_title_text='',
+    legend=dict(
+        yanchor='top',
+        y=0.99,
+        xanchor='right',
+        x=0.99
+    ),
     geo=dict(
         showland=True,
         landcolor="slategray",
@@ -92,7 +102,7 @@ fig.update_layout(
         resolution=50,
         projection=dict(
             #type='conic conformal',
-            type='mt flat polar quartic'
+            type='transverse mercator'
             #rotation_lon=-100
         ),
         lonaxis=dict(
@@ -114,7 +124,7 @@ fig.update_layout(
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+#server = app.server
 
 tools_card = dbc.Card([
     dbc.CardBody(
