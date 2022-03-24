@@ -124,7 +124,7 @@ fig.update_layout(
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
                 external_stylesheets=[dbc.themes.SLATE])
-#server = app.server
+server = app.server
 
 tools_card = dbc.Card([
     dbc.CardBody(

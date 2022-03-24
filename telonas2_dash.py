@@ -260,8 +260,9 @@ table_card = dbc.Card([
         children=[dcc.Textarea(id='t_mean',
                                 value='',
                                 readOnly=True,
-                                style={'width': '100%', 'height': 40,
-                                       'backgroundColor': colors['background']},
+                                # style={'width': '100%', 'height': 40}
+                                #        # 'backgroundColor': colors['background'],
+                                #        # 'textColor':       colors['text']},
                                 ),
                     dash_table.DataTable(id='table',
                                          style_table={'backgroundColor': colors['background'],
@@ -284,7 +285,7 @@ graph_card = dbc.Card(
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/prawler/telonas2/',
+                #requests_pathname_prefix='/prawler/telonas2/',
                 external_stylesheets=[dbc.themes.SLATE])
 server = app.server
 
@@ -328,9 +329,8 @@ def change_prawler(dataset):
     end_date = eng_set.t_end.date()
     first_var = eng_set.ret_vars()[0]['value']
 
-
-
     return dataset_dict[dataset].ret_vars(), str(min_date_allowed[0]), str(max_date_allowed[0]), str(start_date[0]), str(end_date), first_var
+
 
 #engineering data selection
 @app.callback(
@@ -427,9 +427,6 @@ def plot_evar(dataset, select_var, start_date, end_date):
         font_color=colors['text'],
     )
 
-    # efig.style(
-    #     height=700
-    # )
 
     return efig, table_data, columns, t_mean
 
