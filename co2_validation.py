@@ -97,9 +97,9 @@ Callbacks
 
 #engineering data selection
 @app.callback(
-    [Output('graphs', 'figure'),
-     Output('datatable', 'data'),
-     Output('datatable', 'columns')],
+    [Output('graphs', 'figure')],
+     # Output('datatable', 'data'),
+     # Output('datatable', 'columns')],
     [Input('select_x', 'value'),
      Input('date-picker', 'start_date'),
      Input('date-picker', 'end_date')
@@ -154,19 +154,19 @@ def load_plot(plot_fig, start_date, end_date):
                                     margin=dict(l=25, r=25, b=25, t=25, pad=4)
                                     )
 
-        #dtable = dash_table.DataTable()
+        # #dtable = dash_table.DataTable()
+        #
+        # columns = [{'id': 'state', 'name': 'State'},
+        #          {'id': 'size', 'name': 'Size'}]
+        #
+        # table_df = pd.concat([epoff, apoff])
+        # drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
+        # sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
+        #
+        # table_data = [{'state': list(table_df['INSTRUMENT_STATE'].unique())},
+        #                      {'size': sizes}]
 
-        columns = [{'id': 'state', 'name': 'State'},
-                 {'id': 'size', 'name': 'Size'}]
-
-        table_df = pd.concat([epoff, apoff])
-        drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
-        sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
-
-        table_data = [{'state': list(table_df['INSTRUMENT_STATE'].unique())},
-                             {'size': sizes}]
-
-        return load_plots, table_data, columns
+        return load_plots#, table_data, columns
 
 
     def cal_ref(df):
@@ -180,8 +180,55 @@ def load_plot(plot_fig, start_date, end_date):
         :return:
         '''
 
+        #test function
 
-        return
+        epoff = df[df['INSTRUMENT_STATE'] == 'EPOFF']
+        apoff = df[df['INSTRUMENT_STATE'] == 'APOFF']
+
+        load_plots = make_subplots(rows=1, cols=1,
+                                   subplot_titles=['Pressure'],
+                                   shared_yaxes=False)
+
+        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='EPOFF',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='EPOFF',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='APOFF',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='APOFF',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+
+        load_plots['layout'].update(height=600,
+                                    title=' ',
+                                    hovermode='x unified',
+                                    xaxis_showticklabels=True,
+                                    yaxis_fixedrange=True,
+                                    yaxis_title='Residual',
+                                    xaxis_title='CO2 Gas Concentration',
+                                    xaxis=dict(showgrid=False),
+                                    showlegend=False, modebar={'orientation': 'h'}, autosize=True,
+                                    margin=dict(l=25, r=25, b=25, t=25, pad=4)
+                                    )
+
+        # #dtable = dash_table.DataTable()
+        #
+        # columns = [{'id': 'state', 'name': 'State'},
+        #          {'id': 'size', 'name': 'Size'}]
+        #
+        # table_df = pd.concat([epoff, apoff])
+        # drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
+        # sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
+        #
+        # table_data = [{'state': list(table_df['INSTRUMENT_STATE'].unique())},
+        #                      {'size': sizes}]
+
+        return load_plots  # , table_data, columns
+
+        #return
 
 
     def multi_ref(df):
@@ -225,17 +272,18 @@ def load_plot(plot_fig, start_date, end_date):
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
     data = dataset.ret_data(t_start=start_date, t_end=end_date)
-    print(plot_fig)
+    #print(plot_fig)
     plotters = switch_plot(plot_fig, data)
 
-    plotters[0].update_layout(
+    plotters.update_layout(
         plot_bgcolor=colors['background'],
         paper_bgcolor=colors['background'],
         font_color=colors['text'],
         autosize=True
     )
 
-    return plotters
+
+    return [plotters]
 
 if __name__ == '__main__':
     #app.run_server(host='0.0.0.0', port=8050, debug=True)

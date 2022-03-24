@@ -263,7 +263,8 @@ table_card = dbc.Card([
                                 value='',
                                 readOnly=True,
                                 style={'width': '100%', 'height': 40,
-                                       'backgroundColor': colors['background']},
+                                       'backgroundColor': colors['background'],
+                                       'textColor':       colors['text']},
                                 ),
                     dash_table.DataTable(id='table',
                                          style_table={'backgroundColor': colors['background'],
@@ -286,7 +287,7 @@ graph_card = dbc.Card(
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/prawler/m200/',
+                #requests_pathname_prefix='/prawler/m200/',
                 external_stylesheets=[dbc.themes.SLATE])
 server = app.server
 
