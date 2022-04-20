@@ -1,11 +1,15 @@
+'''
+ERDDAP reader archetype file.
+
+TODO:
+    Need exception handler for bad urls
+
+'''
 
 import pandas as pd
 import datetime
 import requests
 
-
-skipvars = ['latitude', 'longitude']
-# will need to be altered for multi-set displays
 
 # ======================================================================================================================
 # helpful functions
@@ -37,133 +41,203 @@ def from_erddap_date(edate):
 
     return redate
 
+def erddap_url_date(in_date):
+    # generates a url selection date for ERDDAP
+    # in the event a datetime.date is passed, it will return midnight (00:00:00) of the date
+
+    if isinstance(in_date, str):
+
+        in_date = from_erddap_date(in_date)
+
+    str_date = f'{in_date.year}-{in_date.month}-{in_date.day}'
+
+    try:
+        str_date = f'{str_date}T{in_date.month}%3A{in_date.minute}%3A{in_date.second}Z'
+    except AttributeError:
+        str_date = f'{str_date}T00%3A00%3A00Z'
+
+    return str_date
+
+
+
 ''' class used for holding useful information about the ERDDAP databases
 ========================================================================================================================
 '''
 
 class Dataset:
-    #dataset object,
-    #it takes requested data and generates windows and corresponding urls
-    #logger.info('New dataset initializing')
+    '''
+    dataset object,
+    Requires url on init
+    If time frames are provided, it will only load set data with those dates
+
+    '''
 
     def __init__(self, url, window_start=False, window_end=False):
+        #self.url = self.url_check(url)
         self.url = url
-        self.flags = pd.DataFrame
-        self.data, self.vars = self.get_data()
-        self.t_start, self.t_end = self.data_dates()
-        self.set_names, self.flags = self.catagorize()
+        self.variables = self.get_raw_vars()
+        self.data = pd.DataFrame()
+        self.time_flag = False
 
-        #self.co2_vars
+        if window_start:
+            self.t_start = window_start
+            self.time_flag = True
+
+        else:
+            self.t_start = self.data_start()
+
+        if window_end:
+            self.t_end = window_end
+            self.time_flag = True
+
+        else:
+            self.t_end = self.data_end()
+
+    # def url_check(self, try_url):
+    #
+    #     page = (requests.get(try_url[:-3] + "das"))
+
+    #reads variables from .das file
+    def get_raw_vars(self):
+        '''
+        get_vars:
+        Generates a list of all variables,
+
+        '''
+
+        page = (requests.get(self.url[:-3] + "das")).text
+        pages = page.split('\n')
+
+        self.variables = []
+
+        for item in pages:
+
+            if len(item) - len(item.lstrip(' ')) == 2:
+
+                if len(item[2:-2]) > 1:
+
+                    self.variables.append(item[2:-2])
+
+
+        return self.variables
+
 
     #opens metadata page and returns start and end datestamps
-    def data_dates(self):
+    def data_start(self):
         '''
-        Currently the meta data states a start in 1969, which seems unrealistic
-        Let's actually use hard coded dates. We may need to fix
+        Let's try using the NC_GLOBAL time_coverage variable, maybe that will be more reliable than the machine
+        written dates
+
         :return:
         '''
         page = (requests.get(self.url[:-3] + "das")).text
 
-        indx = page.find('Float64 actual_range')
-        mdx = page.find(',', indx)
-        endx = page.find(";", mdx)
-        # start_time = datetime.datetime.utcfromtimestamp(float(page[(indx + 21):mdx]))
-        # end_time = datetime.datetime.utcfromtimestamp(float(page[(mdx + 2):endx]))
+        line = page.find('time_coverage_start')
+        indx = page.find('"', line)
+        endx = page.find('"', indx+1)
 
-        #prevents dashboard from trying to read data from ... THE FUTURE!
-        # if end_time > datetime.datetime.now():
-        #     end_time = datetime.datetime.now()
+        return from_erddap_date(page[indx+1:endx-1])
 
-        if self.data['time'].min() < datetime.datetime.utcfromtimestamp(float(page[(indx + 21):mdx])):
-            start_time = datetime.datetime.utcfromtimestamp(float(page[(indx + 21):mdx]))
+
+    def data_end(self):
+
+        '''
+        Let's try using the NC_GLOBAL time_coverage variable, maybe that will be more reliable than the machine
+        written dates
+
+        :return:
+        '''
+        page = (requests.get(self.url[:-3] + "das")).text
+
+        line = page.find('time_coverage_end')
+        indx = page.find('"', line)
+        endx = page.find('"', indx+1)
+
+        return from_erddap_date(page[indx+1:endx-1])
+
+
+    def get_data(self, time_flag, variables):
+        # IDEA:
+        # Make both add and exclude variables options with kwargs
+        #
+        #https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv?time%2Clatitude&time%3E=2022-04-03T00%3A00%3A00Z&time%3C=2022-04-10T14%3A59%3A14Z
+        #[url base] + '.csv?time%2C'+ [var1] + '%2C' + [var2] + '%2C' + .... + [time1] + '%3C' + [time2]
+
+
+        if variables == [] or variables is None:
+
+            self.data = pd.read_csv(self.url, skiprows=[1], low_memory=False)
+
+            return self.data
+
+        spec_url = f'{self.url}'
+
+        if time_flag:
+            spec_url = f'{spec_url}?time'
+            #spec_url = f'{spec_url}?'
+
+            for var in variables:
+                if var is None:
+                    continue
+
+                spec_url = f'{spec_url}%2C{var}'
+
+            spec_url = f'{spec_url}&time%3E={erddap_url_date(self.t_start)}&time%3C={erddap_url_date(self.t_end)}'
+
         else:
-            start_time = self.data['time'].min()
+            spec_url = f'{spec_url}?{variables[0]}'
 
-        if self.data['time'].max() > datetime.datetime.utcfromtimestamp(float(page[(mdx + 2):endx])):
-            end_time = self.data['time'].max()
-        else:
-            end_time = datetime.datetime.utcfromtimestamp(float(page[(mdx + 2):endx]))
+            for var in variables[1:]:
+                if var is None:
+                    continue
 
-        return start_time, end_time
+                spec_url = f'{spec_url}%2C{var}'
 
-
-    def get_data(self):
-
-        self.data = pd.read_csv(self.url, skiprows=[1], low_memory=False)
+        self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
         temp = self.data['time'].apply(from_erddap_date)
-        #self.serials = (self.data['SN_ASVCO2'].unique()).tolist()
-        #self.data = self.data.select_dtypes(include='float64')
         self.data['time'] = temp
-        self.flags.assign(temp)
 
-        dat_vars = self.data.columns
-
-
-        # for set in list(data.keys()):
-        self.vars = []
-        for var in list(dat_vars):
-            # if var in skipvars:
-            #     continue
-
-            if 'FLAG' in var:
-                self.flags.assign(self.data[var])
-                #self.data.drop(self.data[var], axis='columns')
-
-            if str(self.data[var].dtype) == 'object':
-                continue
-
-            self.vars.append({'label': var, 'value': var})
+        return self.data
 
 
-        return self.data, self.vars
-
-
-    def catagorize(self):
-
-        sets = set()
-        flags = pd.DataFrame
-        base_sets = {}
-
-        subsets = {0:   '_MEAN',
-                   1:   '_STDDEV',
-                   2:   '_MAX',
-                   3:   '_MIN'
-                   }
-
-        for col in self.data.columns:
-
-            for n in subsets:
-
-                if "FLAG" in col:
-
-                    flags.assign(self.data[col])
-                    continue
-
-                elif subsets[n] in col:
-
-                    sets.add(col.replace(subsets[n], ''))
-
-                    try:
-                        base_sets[col.replace(subsets[n], '')][subsets[n]] = col
-                    except KeyError:
-                        base_sets[col.replace(subsets[n], '')] = {subsets[n]: col}
-
-
-                    continue
-
-            #drop_list =
-
-        return base_sets, flags
-
-    def ret_data(self, **kwargs):
+    def ret_windowed_data(self, **kwargs):
+        '''
+        Returns data and applies time window. The time window may not be necessary with new fncs
+        Possibly faster to window via zoom in Plotly app
+        '''
 
         w_start = kwargs.get('t_start', self.t_start)
         w_end = kwargs.get('t_end', self.t_end)
 
-        #self.data['datetime'] = self.data.loc[:, 'time'].apply(from_erddap_date)
-
         return self.data[(w_start <= self.data['time']) & (self.data['time'] <= w_end)]
+
+
+    #converts our basic variable list into Dash compatible dict thingy
+    def gen_drop_vars(self, **kwargs):
+        '''
+        kwargs:
+            skips: list
+                List of variables to exclude
+        :returns list of variables, or list of dict of variales
+        '''
+
+        skips = ['time'] + kwargs.get('skips', [])
+
+        vars = []
+
+        for var in list(self.variables):
+
+            # skip unwanted variables
+            if var in skips:
+                continue
+
+            vars.append({'label': var, 'value': var})
+
+        return vars
+
 
     def ret_vars(self):
 
-        return self.vars
+        #if self
+
+        return self.variables

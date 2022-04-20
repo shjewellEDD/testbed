@@ -39,9 +39,9 @@ colors = {'background': '#111111', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+                #requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+#server = app.server
 
 tools_card = dbc.Card([
     dbc.CardBody(
@@ -61,7 +61,13 @@ tools_card = dbc.Card([
                 value='resids',
                 clearable=False
                 ),
-           dhtml.Label(['']),
+            # dhtml.Label(['Options']),
+            #    dcc.Dropdown(
+            #        id="options",
+            #        options=custom_sets,
+            #        value='resids',
+            #        clearable=False
+            #    ),
             dash_table.DataTable(
                 id='datatable',
                 #data=dataset.to_dict('records'),
@@ -96,7 +102,17 @@ app.layout = dhtml.Div([
 Callbacks
 '''
 
-#engineering data selection
+# table updating selection
+@app.callback(
+    [Output('datatable', 'data'),
+     Output('datatable', 'columns')],
+    [Input('select_x', 'value')])
+
+def load_plot(selected_set):
+
+
+
+# plot updating selection
 @app.callback(
     [Output('graphs', 'figure')],
      # Output('datatable', 'data'),
@@ -240,7 +256,52 @@ def load_plot(plot_fig, start_date, end_date):
         :return:
         '''
 
-        return
+        epoff = df[df['INSTRUMENT_STATE'] == 'EPOFF']
+        apoff = df[df['INSTRUMENT_STATE'] == 'APOFF']
+
+        load_plots = make_subplots(rows=1, cols=1,
+                                   subplot_titles=['Pressure'],
+                                   shared_yaxes=False)
+
+        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='EPOFF',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='EPOFF',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='APOFF',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='APOFF',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+
+        load_plots['layout'].update(height=600,
+                                    title=' ',
+                                    hovermode='x unified',
+                                    xaxis_showticklabels=True,
+                                    yaxis_fixedrange=True,
+                                    yaxis_title='Residual',
+                                    xaxis_title='CO2 Gas Concentration',
+                                    xaxis=dict(showgrid=False),
+                                    showlegend=False, modebar={'orientation': 'h'}, autosize=True,
+                                    margin=dict(l=25, r=25, b=25, t=25, pad=4)
+                                    )
+
+        # #dtable = dash_table.DataTable()
+        #
+        # columns = [{'id': 'state', 'name': 'State'},
+        #          {'id': 'size', 'name': 'Size'}]
+        #
+        # table_df = pd.concat([epoff, apoff])
+        # drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
+        # sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
+        #
+        # table_data = [{'state': list(table_df['INSTRUMENT_STATE'].unique())},
+        #                      {'size': sizes}]
+
+        return load_plots  # , table_data, columns
+
 
     def multi_stddev(df):
         '''
