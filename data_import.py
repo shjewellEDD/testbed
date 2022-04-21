@@ -60,7 +60,8 @@ def erddap_url_date(in_date):
 
 
 
-''' class used for holding useful information about the ERDDAP databases
+''' 
+class used for holding useful information about the ERDDAP databases
 ========================================================================================================================
 '''
 
@@ -75,23 +76,29 @@ class Dataset:
     def __init__(self, url, window_start=False, window_end=False):
         #self.url = self.url_check(url)
         self.url = url
-        self.variables = self.get_raw_vars()
+        self.raw_vars = self.get_raw_vars()
         self.data = pd.DataFrame()
+        self.window_flag = False
         self.time_flag = False
+        
+        if 'time' in self.raw_vars:
 
-        if window_start:
-            self.t_start = window_start
             self.time_flag = True
 
-        else:
-            self.t_start = self.data_start()
-
-        if window_end:
-            self.t_end = window_end
-            self.time_flag = True
-
-        else:
-            self.t_end = self.data_end()
+            if window_start:
+                self.t_start = window_start
+                self.window_flag = True
+    
+            else:
+                self.t_start = self.data_start()
+    
+            if window_end:
+                self.t_end = window_end
+                self.window_flag = True
+    
+            else:
+                self.t_end = self.data_end()
+        
 
     # def url_check(self, try_url):
     #
@@ -108,7 +115,7 @@ class Dataset:
         page = (requests.get(self.url[:-3] + "das")).text
         pages = page.split('\n')
 
-        self.variables = []
+        self.raw_vars = []
 
         for item in pages:
 
@@ -116,10 +123,10 @@ class Dataset:
 
                 if len(item[2:-2]) > 1:
 
-                    self.variables.append(item[2:-2])
+                    self.raw_vars.append(item[2:-2])
 
 
-        return self.variables
+        return self.raw_vars
 
 
     #opens metadata page and returns start and end datestamps
@@ -156,13 +163,14 @@ class Dataset:
         return from_erddap_date(page[indx+1:endx-1])
 
 
-    def get_data(self, time_flag, variables):
+    def get_data(self, **kwargs):
         # IDEA:
         # Make both add and exclude variables options with kwargs
         #
         #https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv?time%2Clatitude&time%3E=2022-04-03T00%3A00%3A00Z&time%3C=2022-04-10T14%3A59%3A14Z
         #[url base] + '.csv?time%2C'+ [var1] + '%2C' + [var2] + '%2C' + .... + [time1] + '%3C' + [time2]
-
+        variables = kwargs.get('variables', None)
+        window_flag = kwargs.get('window_flag', False)
 
         if variables == [] or variables is None:
 
@@ -172,7 +180,7 @@ class Dataset:
 
         spec_url = f'{self.url}'
 
-        if time_flag:
+        if window_flag:
             spec_url = f'{spec_url}?time'
             #spec_url = f'{spec_url}?'
 
@@ -194,22 +202,30 @@ class Dataset:
                 spec_url = f'{spec_url}%2C{var}'
 
         self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
-        temp = self.data['time'].apply(from_erddap_date)
-        self.data['time'] = temp
+
+        if self.time_flag:
+            temp = self.data['time'].apply(from_erddap_date)
+            self.data['time'] = temp
 
         return self.data
 
 
-    def ret_windowed_data(self, **kwargs):
+    def ret_data(self, **kwargs):
         '''
         Returns data and applies time window. The time window may not be necessary with new fncs
         Possibly faster to window via zoom in Plotly app
         '''
 
-        w_start = kwargs.get('t_start', self.t_start)
-        w_end = kwargs.get('t_end', self.t_end)
+        if self.time_flag:
 
-        return self.data[(w_start <= self.data['time']) & (self.data['time'] <= w_end)]
+            w_start = kwargs.get('t_start', self.t_start)
+            w_end = kwargs.get('t_end', self.t_end)
+
+            return self.data[(w_start <= self.data['time']) & (self.data['time'] <= w_end)]
+
+        else:
+
+            return self.data
 
 
     #converts our basic variable list into Dash compatible dict thingy
@@ -218,14 +234,14 @@ class Dataset:
         kwargs:
             skips: list
                 List of variables to exclude
-        :returns list of variables, or list of dict of variales
+        :returns list of dict of variales, ERDDAP compatible
         '''
 
         skips = ['time'] + kwargs.get('skips', [])
 
         vars = []
 
-        for var in list(self.variables):
+        for var in list(self.raw_vars):
 
             # skip unwanted variables
             if var in skips:
@@ -238,6 +254,4 @@ class Dataset:
 
     def ret_vars(self):
 
-        #if self
-
-        return self.variables
+        return self.raw_vars
