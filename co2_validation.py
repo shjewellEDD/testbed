@@ -31,7 +31,7 @@ set_url = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/asvco2_gas_validati
 
 custom_sets = [{'label': 'XCO2 Mean',       'value': 'resids'},
                {'label': 'XCO2 Residuals',  'value': 'cals'},
-               {'label': 'XCO2 Delta',      'value': 'temp resids'},
+               {'label': 'CO2 STDDEV',      'value': 'temp resids'},
                {'label': 'CO2 Pres. Mean',  'value': 'stddev'},
                {'label': 'CO2 Mean',        'value': 'resid stddev'},
         ]
@@ -117,7 +117,7 @@ Callbacks
 
 def load_plot(plot_fig):
 
-    def off_ref(df):
+    def off_ref(dset):
         '''
         TODO:
             Hoverdata should be richer
@@ -136,12 +136,15 @@ def load_plot(plot_fig):
         :return:
         '''
 
+        df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
+                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'])
+
         epoff = df[df['INSTRUMENT_STATE'] == 'EPOFF']
         apoff = df[df['INSTRUMENT_STATE'] == 'APOFF']
 
         load_plots = make_subplots(rows=1, cols=1,
                                    subplot_titles=['Pressure'],
-                                   shared_yaxes=False)
+                                   shared_yaxes=False, shared_xaxes=True)
 
         load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='EPOFF', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
@@ -171,7 +174,7 @@ def load_plot(plot_fig):
         return load_plots#, table_data, columns
 
 
-    def cal_ref(df):
+    def cal_ref(dset):
         '''
         Select serial and date
             serial: SN_ASVCO2
@@ -182,7 +185,8 @@ def load_plot(plot_fig):
         :return:
         '''
 
-        #test function
+        df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
+                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'])
 
         zcal = df[df['INSTRUMENT_STATE'] == 'ZPPCAL']
         scal = df[df['INSTRUMENT_STATE'] == 'SPPCAL']
@@ -226,36 +230,43 @@ def load_plot(plot_fig):
         #return
 
 
-    def multi_ref(df):
+    def multi_ref(dset):
         '''
         Select serial, LICOR firmware, ASVCO2 firmware, date range
         Boolean temperature correct residual
         Residual
         :return:
+        TODO:
+            Add INSTRUMENT_STATE to hoverinfo
         '''
 
-        epoff = df[df['INSTRUMENT_STATE'] == 'EPOFF']
-        apoff = df[df['INSTRUMENT_STATE'] == 'APOFF']
+        df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2',
+                            'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_STDDEV_ASVCO2'])
 
-        load_plots = make_subplots(rows=1, cols=1,
+        load_plots = make_subplots(rows=2, cols=1,
                                    subplot_titles=['Pressure'],
                                    shared_yaxes=False)
 
-        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='EPOFF',
-                               hoverinfo='x+y+name',
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='EPOFF', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='EPOFF',
-                               hoverinfo='x+y+name',
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='EPOFF', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='APOFF',
-                               hoverinfo='x+y+name',
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='APOFF', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='APOFF',
-                               hoverinfo='x+y+name',
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='APOFF', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
 
-        load_plots['layout'].update(yaxis_title='Residual',
-                                    xaxis_title='CO2 Gas Concentration',
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_STDDEV_ASVCO2'],
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=2, col=1)
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_STDDEV_ASVCO2'],
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=2, col=1)
+
+        load_plots['layout'].update(yaxis1_title='CO2 Residuals',
+                                    xaxis1_title='CO2 Gas Concentration',
+                                    yaxis2_title='CO2 STDDEV',
+                                    xaxis2_title='CO2 Gas Concentration',
                                     )
 
         # #dtable = dash_table.DataTable()
@@ -303,9 +314,7 @@ def load_plot(plot_fig):
 
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
-    data = dataset.get_data()
-
-    plotters = switch_plot(plot_fig, data)
+    plotters = switch_plot(plot_fig, dataset)
 
     plotters.update_layout(height=600,
         title=' ',
@@ -317,7 +326,7 @@ def load_plot(plot_fig):
         font_color=colors['text'],
         autosize=True,
         xaxis=dict(showgrid=False),
-        showlegend=False, modebar={'orientation': 'h'},
+        showlegend=True, modebar={'orientation': 'h'},
         margin=dict(l=25, r=25, b=25, t=25, pad=4)
     )
 
