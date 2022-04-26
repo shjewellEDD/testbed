@@ -26,29 +26,29 @@ state_select_vars = ['INSTRUMENT_STATE', 'last_ASVCO2_validation', 'CO2LastZero'
 resid_vars = ['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_RESIDUAL_STDDEV_ASVCO2', ' CO2_DRY_RESIDUAL_MEAN_ASVCO2', ' CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2',
               ]
 
-set_url = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/asvco2_gas_validation_summary_mirror.csv'
-#set_url =
+#set_url = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/asvco2_gas_validation_summary_mirror.csv'
+
+urls = [{'label': 'Summary Mirror', 'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/asvco2_gas_validation_summary_mirror.csv'}]
 
 custom_sets = [{'label': 'XCO2 Mean',       'value': 'resids'},
                {'label': 'XCO2 Residuals',  'value': 'cals'},
                {'label': 'CO2 STDDEV',      'value': 'temp resids'},
                {'label': 'CO2 Pres. Mean',  'value': 'stddev'},
-               {'label': 'CO2 Mean',        'value': 'resid stddev'},
-        ]
+               {'label': 'CO2 Mean',        'value': 'resid stddev'}]
 
-dataset = data_import.Dataset(set_url)
+#dataset = data_import.Dataset(urls[0]['value'])
 
-colors = {'background': '#111111', 'text': '#7FDBFF'}
+colors = {'Dark': '#111111', 'Light': '#443633', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                #requests_pathname_prefix='/co2/validation/',
+                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-#server = app.server
+server = app.server
 
 tools_card = dbc.Card([
     dbc.CardBody(
-           style={'backgroundColor': colors['background']},
+           style={'backgroundColor': colors['Dark']},
            children=[
                 # dcc.DatePickerRange(
                 # id='date-picker',
@@ -58,19 +58,19 @@ tools_card = dbc.Card([
                 # end_date=dataset.t_end
                 # ),
             dhtml.Label(['Select Set']),
+                  dcc.Dropdown(
+                      id="select_set",
+                      options=urls,
+                      value=urls[0]['value'],
+                      clearable=False
+                  ),
+            dhtml.Label(['Select Display']),
             dcc.Dropdown(
-                id="select_x",
+                id="select_display",
                 options=custom_sets,
                 value='resids',
                 clearable=False
                 ),
-            # dhtml.Label(['Options']),
-            #    dcc.Dropdown(
-            #        id="options",
-            #        options=custom_sets,
-            #        value='resids',
-            #        clearable=False
-            #    ),
             dash_table.DataTable(
                 id='datatable',
                 #data=dataset.to_dict('records'),
@@ -93,7 +93,12 @@ app.layout = dhtml.Div([
         dbc.CardBody([
             dbc.Row([dhtml.H1('ASVCO2 Validation Set')]),
             dbc.Row([
-                dbc.Col(tools_card, width=3),
+                dbc.Col(children=[tools_card,
+                                  dcc.RadioItems(id='image_mode',
+                                                 options=['Dark', 'Light'],
+                                                 value='Dark')
+                                  ],
+                        width=3),
                 dbc.Col(graph_card, width=9)
             ])
         ])
@@ -108,14 +113,16 @@ Callbacks
 # plot updating selection
 @app.callback(
     [Output('graphs', 'figure')],
-     # Output('datatable', 'data'),
-     # Output('datatable', 'columns')],
-    [Input('select_x', 'value'),
+     #Output('datatable', 'data'),
+     #Output('datatable', 'columns')],
+    [Input('select_set', 'value'),
+     Input('select_display', 'value'),
+     Input('image_mode', 'value')
      # Input('date-picker', 'start_date'),
      # Input('date-picker', 'end_date')
      ])
 
-def load_plot(plot_fig):
+def load_plot(plot_set, plot_fig, im_mode):
 
     def off_ref(dset):
         '''
@@ -159,7 +166,7 @@ def load_plot(plot_fig):
                                     xaxis_title='CO2 Gas Concentration'
                                     )
 
-        # #dtable = dash_table.DataTable()
+        # dtable = dash_table.DataTable()
         #
         # columns = [{'id': 'state', 'name': 'State'},
         #          {'id': 'size', 'name': 'Size'}]
@@ -168,11 +175,11 @@ def load_plot(plot_fig):
         # drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
         # sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
         #
-        # table_data = [{'state': list(table_df['INSTRUMENT_STATE'].unique())},
-        #                      {'size': sizes}]
-
-        return load_plots#, table_data, columns
-
+        # table_data = [{'state': list(table_df['OUT_OF_RANGE'].unique())},
+        #               {'size': sizes}]
+        #
+        # return load_plots, table_data, columns
+        return load_plots
 
     def cal_ref(dset):
         '''
@@ -314,6 +321,7 @@ def load_plot(plot_fig):
 
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
+    dataset = data_import.Dataset(plot_set)
     plotters = switch_plot(plot_fig, dataset)
 
     plotters.update_layout(height=600,
@@ -321,8 +329,8 @@ def load_plot(plot_fig):
         hovermode='x unified',
         xaxis_showticklabels=True,
         yaxis_fixedrange=True,
-        plot_bgcolor=colors['background'],
-        paper_bgcolor=colors['background'],
+        plot_bgcolor=colors[im_mode],
+        paper_bgcolor=colors[im_mode],
         font_color=colors['text'],
         autosize=True,
         xaxis=dict(showgrid=False),

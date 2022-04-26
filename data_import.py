@@ -170,7 +170,12 @@ class Dataset:
         #https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv?time%2Clatitude&time%3E=2022-04-03T00%3A00%3A00Z&time%3C=2022-04-10T14%3A59%3A14Z
         #[url base] + '.csv?time%2C'+ [var1] + '%2C' + [var2] + '%2C' + .... + [time1] + '%3C' + [time2]
         variables = kwargs.get('variables', None)
-        self.window_flag = kwargs.get('window_flag', False)
+
+        self.t_start = kwargs.get('window_start', self.t_start)
+        self.t_end = kwargs.get('window_end', self.t_end)
+
+        if 'window_start' in kwargs or 'window_end' in kwargs:
+            self.window_flag = True
 
         if variables == [] or variables is None:
 
@@ -180,11 +185,14 @@ class Dataset:
 
         spec_url = f'{self.url}'
 
+        # making vars a set eliminates duplicates, which cause HTML causes errors
+        vars = set(variables)
+
         if self.time_flag:
             spec_url = f'{spec_url}?time'
             #spec_url = f'{spec_url}?'
 
-            for var in variables:
+            for var in vars:
                 if var is None:
                     continue
 
