@@ -42,9 +42,9 @@ colors = {'Dark': '#111111', 'Light': '#443633', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+                #requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+#server = app.server
 
 tools_card = dbc.Card([
     dbc.CardBody(
@@ -311,18 +311,18 @@ def load_plot(plot_set, plot_fig, im_mode):
 
         return
 
-    def switch_plot(case, data):
-        return {'resids':       off_ref(data),
-                'cals':         cal_ref(data),
-                'temp resids':  multi_ref(data),
-                'stddev':       multi_stddev(data),
-                'resid stddev': resid_and_stdev(data)
+    def switch_plot(case):
+        return {'resids':       off_ref,
+                'cals':         cal_ref,
+                'temp resids':  multi_ref,
+                'stddev':       multi_stddev,
+                'resid stddev': resid_and_stdev
                 }.get(case)
 
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
     dataset = data_import.Dataset(plot_set)
-    plotters = switch_plot(plot_fig, dataset)
+    plotters = switch_plot(plot_fig)(dataset)
 
     plotters.update_layout(height=600,
         title=' ',

@@ -9,7 +9,7 @@ import pandas as pd
 import dash
 from dash import dcc, dash_table
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dash import html as dhtml
@@ -23,11 +23,11 @@ url4 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1091_ecmwf_2021.csv'
 url5 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'
 set_loc = 'D:\Data\CO2 Sensor tests\\asvco2_gas_validation_all_fixed_station_mirror.csv'
 
-sets = [{'label': 'SD Shakedown', 'value': rt_url1},
-        #{'label': 'SD 1067', 'value': rt_url2},
-        #{'label': 'SD 1030', 'value': rt_url3},
-        #{'label': 'SD 1091', 'value': url4},
-        {'label': 'SD 1089', 'value': url5}]
+available_sets = [{'label': 'SD Shakedown',   'value': 'https://data.pmel.noaa.gov/generic/erddap/tabledap/sd_shakedown_collection.csv'},
+        {'label': 'SD 1067',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1067_2021_post_mission.csv'},
+        {'label': 'SD 1030',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1030_2021_post_mission.csv'},
+        {'label': 'SD 1091 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1091_ecmwf_2021.csv'},
+        {'label': 'SD 1089 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'}]
 
 custom_sets = [{'label': 'XCO2 Mean', 'value': 'co2_raw'},
         {'label': 'XCO2 Residuals', 'value': 'co2_res'},
@@ -44,7 +44,6 @@ custom_sets = [{'label': 'XCO2 Mean', 'value': 'co2_raw'},
         {'label': 'Pres Difference', 'value': 'pres_state'}
         ]
 
-
 dataset = data_import.Dataset(rt_url1)
 
 
@@ -52,9 +51,9 @@ colors = {'background': '#111111', 'text': '#7FDBFF', 'light': '#7f7f7f'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/real_time/',
+                #requests_pathname_prefix='/co2/real_time/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+#server = app.server
 
 tools_card = dbc.Card(
     dbc.CardBody(
@@ -68,14 +67,15 @@ tools_card = dbc.Card(
             dhtml.Label(['Select Mission']),
             dcc.Dropdown(
                     id='set-select',
-                    options=sets,
-                    value=sets[0]['value'],
+                    options=available_sets,
+                    value=available_sets[0]['value'],
                     clearable=False
                 ),
             dhtml.Label(['Select Plots']),
             dcc.Dropdown(
-                    id="select_x",
+                    id="display-select",
                     options=custom_sets,
+                    #value=custom_sets[0]['value'],
                     value='co2_raw',
                     clearable=False
             )
@@ -117,15 +117,16 @@ Callbacks
 #engineering data selection
 @app.callback(
     Output('graphs', 'figure'),
-    [Input('select_x', 'value'),
-     Input('set-select', 'value'),
+    [Input('display-select', 'value'),
+     #Input('set-select', 'value'),
      Input('date-picker', 'start_date'),
      Input('date-picker', 'end_date'),
      Input('mode-select', 'value')#,
      #Input('graphs', 'figure')
-     ])
+     ],
+    State('set-select', 'value'))
 
-def plot_evar(selection, set, t_start, t_end, colormode):
+def plot_evar(selection, t_start, t_end, colormode, erddap_set):
 
     def co2_raw(dataset):
         '''
@@ -141,10 +142,7 @@ def plot_evar(selection, set, t_start, t_end, colormode):
         #                                     'SAL_SBE37_MEAN',
         #                                     'TEMP_SBE37_MEAN'])
 
-        df = dataset.get_data(variables=['XCO2_DRY_SW_MEAN_ASVCO2',
-                                            'XCO2_DRY_AIR_MEAN_ASVCO2',
-                                            'SAL_SBE37_MEAN',
-                                            'TEMP_SBE37_MEAN'],
+        df = dataset.get_data(variables=['XCO2_DRY_SW_MEAN_ASVCO2', 'XCO2_DRY_AIR_MEAN_ASVCO2', 'SAL_SBE37_MEAN', 'TEMP_SBE37_MEAN'],
                               window_start=t_start, window_end=t_end)
 
         load_plots = make_subplots(rows=3, cols=1, shared_xaxes='all',
@@ -181,11 +179,7 @@ def plot_evar(selection, set, t_start, t_end, colormode):
             Secondary: O2_SAT_SBE37_MEAN and/or O2_MEAN_ASVCO2
             '''
 
-        df = dataset.get_data(variables=['INSTRUMENT_STATE',
-                                         'XCO2_DRY_SW_MEAN_ASVCO2',
-                                         'XCO2_DRY_AIR_MEAN_ASVCO2',
-                                         'O2_SAT_SBE37_MEAN',
-                                         'O2_MEAN_ASVCO2'],
+        df = dataset.get_data(variables=['INSTRUMENT_STATE', 'XCO2_DRY_SW_MEAN_ASVCO2', 'XCO2_DRY_AIR_MEAN_ASVCO2', 'O2_SAT_SBE37_MEAN', 'O2_MEAN_ASVCO2'],
                               window_start=t_start, window_end=t_end)
 
         co2_diff = []
@@ -196,11 +190,6 @@ def plot_evar(selection, set, t_start, t_end, colormode):
         for n in range(len(templist1)):
 
             co2_diff.append(templist1[n] - templist2[n])
-
-
-        # co2_diff = go.Scatter(x=df['time'], y=co2_diff, name='CO2 Diff', hoverinfo='x+y+name')
-        # sbe = go.Scatter(x=df['time'], y=df['O2_SAT_SBE37_MEAN'], name='O2_SAT_SBE37_MEAN', hoverinfo='x+y+name')
-        # o2 = go.Scatter(x=df['time'], y=df['O2_MEAN_ASVCO2'], name='O2_MEAN_ASVCO2', hoverinfo='x+y+name')
 
         load_plots = make_subplots(rows=3, cols=1, shared_xaxes='all',
                                    subplot_titles=("XCO2 DRY-AIR", "Mean O2 SBE37", "Mean O2 ASVCO2"),
@@ -636,28 +625,27 @@ def plot_evar(selection, set, t_start, t_end, colormode):
 
         return load_plots
 
-
-    def switch_plot(case, data):
-        return {'co2_raw':      co2_raw(data),
-        'co2_res':          co2_res(data),
-        'co2_delt':         co2_delt(data),
-        'co2_det_state':    co2_det_state(data),
-        'co2_mean_zp':      co2_mean_zp(data),
-        'co2_mean_sp':      co2_mean_sp(data),
-        'co2_span_temp':    co2_span_temp(data),
-        'co2_zero_temp':    co2_zero_temp(data),
-        'co2_stddev':       co2_stddev(data),
-        'o2_mean':          o2_mean(data),
-        'co2_span':         co2_span(data),
-        'co2_zero':         co2_zero(data),
-        'pres_state':       pres_state(data)
+    def switch_plot(case):
+        return {'co2_raw':      co2_raw,
+        'co2_res':          co2_res,
+        'co2_delt':         co2_delt,
+        'co2_det_state':    co2_det_state,
+        'co2_mean_zp':      co2_mean_zp,
+        'co2_mean_sp':      co2_mean_sp,
+        'co2_span_temp':    co2_span_temp,
+        'co2_zero_temp':    co2_zero_temp,
+        'co2_stddev':       co2_stddev,
+        'o2_mean':          o2_mean,
+        'co2_span':         co2_span,
+        'co2_zero':         co2_zero,
+        'pres_state':       pres_state
         }.get(case)
 
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
-    dataset = data_import.Dataset(set)
+    dataset = data_import.Dataset(erddap_set)
 
-    plotters = switch_plot(selection, dataset)
+    plotters = switch_plot(selection)(dataset)
 
     bkgrd_colors = {'Dark': 'background',
                     'Light': 'light'}
