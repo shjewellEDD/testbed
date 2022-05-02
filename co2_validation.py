@@ -112,9 +112,9 @@ Callbacks
 
 # plot updating selection
 @app.callback(
-    [Output('graphs', 'figure')],
-     #Output('datatable', 'data'),
-     #Output('datatable', 'columns')],
+    [Output('graphs', 'figure'),
+     Output('datatable', 'data'),
+     Output('datatable', 'columns')],
     [Input('select_set', 'value'),
      Input('select_display', 'value'),
      Input('image_mode', 'value')
@@ -167,19 +167,19 @@ def load_plot(plot_set, plot_fig, im_mode):
                                     )
 
         # dtable = dash_table.DataTable()
-        #
-        # columns = [{'id': 'state', 'name': 'State'},
-        #          {'id': 'size', 'name': 'Size'}]
-        #
-        # table_df = pd.concat([epoff, apoff])
-        # drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
-        # sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
-        #
-        # table_data = [{'state': list(table_df['OUT_OF_RANGE'].unique())},
-        #               {'size': sizes}]
-        #
-        # return load_plots, table_data, columns
-        return load_plots
+
+        columns = [{'id': 'state', 'name': 'State'},
+                 {'id': 'size', 'name': 'Size'}]
+
+        table_df = pd.concat([epoff, apoff])
+        drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
+        sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
+
+        table_data = [{'state': list(table_df['OUT_OF_RANGE'].unique())},
+                      {'size': sizes}]
+
+        return load_plots, table_data, columns
+        # return load_plots
 
     def cal_ref(dset):
         '''
