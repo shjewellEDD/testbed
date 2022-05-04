@@ -30,11 +30,13 @@ resid_vars = ['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_RESIDUAL_STDDEV_ASVCO2', ' CO2_DR
 
 urls = [{'label': 'Summary Mirror', 'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/asvco2_gas_validation_summary_mirror.csv'}]
 
-custom_sets = [{'label': 'XCO2 Mean',       'value': 'resids'},
-               {'label': 'XCO2 Residuals',  'value': 'cals'},
-               {'label': 'CO2 STDDEV',      'value': 'temp resids'},
-               {'label': 'CO2 Pres. Mean',  'value': 'stddev'}]
-               #{'label': 'CO2 Mean',        'value': 'resid stddev'}]
+custom_sets = [{'label': 'EPOFF & APOFF vs Gas Concentration',       'value': 'resids'},
+               {'label': 'ZPCAL & SPPCAL vs Ref Gas Concentration',  'value': 'cals'},
+               {'label': 'CO2 AVG & STDDEV',                        'value': 'temp resids'},
+               {'label': 'CO2 Pres. Mean',                          'value': 'stddev'},
+               {'label': 'Resid vs Time',                           'value': 'resid stddev'},
+               {'label': 'STDDEV Histogram',                        'value': 'stddev hist'},
+               {'label': 'Summary Table',                           'value': 'summary table'}]
 
 #dataset = data_import.Dataset(urls[0]['value'])
 
@@ -42,9 +44,9 @@ colors = {'Dark': '#111111', 'Light': '#443633', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+#                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+#server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -290,7 +292,7 @@ def load_plot(plot_set, plot_fig, im_mode, filt_val1, filt_val2, filt_val3, filt
                 temp.append(df[df['SN_ASVCO2'] == var])
             for var in filt2:
                 temp.append(df[df['CO2DETECTOR_firmware'] == var])
-            for var in filt1:
+            for var in filt3:
                 temp.append(df[df['ASVCO2_firmware'] == var])
 
             df = pd.concat(temp)
@@ -366,7 +368,7 @@ def load_plot(plot_set, plot_fig, im_mode, filt_val1, filt_val2, filt_val3, filt
                 temp.append(df[df['SN_ASVCO2'] == var])
             for var in filt2:
                 temp.append(df[df['CO2DETECTOR_firmware'] == var])
-            for var in filt1:
+            for var in filt3:
                 temp.append(df[df['ASVCO2_firmware'] == var])
 
             df = pd.concat(temp)
@@ -409,24 +411,101 @@ def load_plot(plot_set, plot_fig, im_mode, filt_val1, filt_val2, filt_val3, filt
             xaxis_title='CO2 Gas Concentration',
         )
 
-        return load_plot, filt_card
+        return load_plots, filt_card
 
 
-    def resid_and_stdev(df, filt):
+    def resid_and_stdev(dset, filt1, filt2, filt3, filt4):
+        '''
+        Select serial, LICOR firmware, ASVCO2 firmware, date range
+        Boolean temperature correct residual
+        Residual vs time, with STDDEV as error bars
+        :return:
+
+        NOTES:
+            At test, the Last Validation filter doesn't appear to work. Upon inspection, this a problem in the data,
+            not a bug in the code,.
+        '''
+
+        df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2',
+                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'SN_ASVCO2', 'ASVCO2_firmware',
+                                      'CO2DETECTOR_firmware', 'last_ASVCO2_validation'])
+
+        # filter block
+        if 'filter' in str(dash.callback_context.triggered[0]['prop_id'].split('.')[0]):
+
+            filt_card = dash.no_update
+
+            # if we're filtering everything, don't worry about plotting
+            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == []:
+                load_plots = make_subplots(rows=1, cols=1,
+                                           shared_yaxes=False, shared_xaxes=True)
+
+                return load_plots, filt_card
+
+            temp = []
+
+            for var in filt1:
+                temp.append(df[df['SN_ASVCO2'] == var])
+            for var in filt2:
+                temp.append(df[df['CO2DETECTOR_firmware'] == var])
+            for var in filt3:
+                temp.append(df[df['ASVCO2_firmware'] == var])
+            for var in filt4:
+                temp.append(df[df['last_ASVCO2_validation'] == var])
+
+            df = pd.concat(temp)
+
+        else:
+            filt_card = [dhtml.Label('Serial #'),
+                         dcc.Checklist(id='filter1', options=list(df['SN_ASVCO2'].unique()),
+                                       value=list(df['SN_ASVCO2'].unique())),
+                         dhtml.Label('LiCOR Firmware'),
+                         dcc.Checklist(id='filter2', options=list(df['CO2DETECTOR_firmware'].unique()),
+                                       value=list(df['CO2DETECTOR_firmware'].unique())),
+                         dhtml.Label('ASVCO2 firmware'),
+                         dcc.Checklist(id='filter3', options=list(df['ASVCO2_firmware'].unique()),
+                                       value=list(df['ASVCO2_firmware'].unique())),
+                         dhtml.Label('Last Validation'),
+                         dcc.Checklist(id='filter4', options=list(df['last_ASVCO2_validation'].unique()),
+                                       value=list(df['last_ASVCO2_validation'].unique()))]
+
+        load_plots = make_subplots(rows=1, cols=1,
+                                   subplot_titles=['Residual Over Time'],
+                                   shared_yaxes=False)
+
+        load_plots.add_scatter(x=df['time'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='Residual',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='Dry Residual',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+
+        load_plots['layout'].update(
+            yaxis_title='Residual'
+        )
+
+        return load_plots, filt_card
+
+    def summary_table(dset, filt1, filt2, filt3, filt4):
+
+        return
+
+    def stddev_hist(dset, filt1, filt2, filt3, filt4):
         '''
         Select random variable
         Histogram of marginal probability dists
         :return:
         '''
 
-        return
 
     def switch_plot(case):
         return {'resids':       off_ref,
                 'cals':         cal_ref,
                 'temp resids':  multi_ref,
                 'stddev':       multi_stddev,
-                'resid stddev': resid_and_stdev
+                'resid stddev': resid_and_stdev,
+                'stddev hist':  stddev_hist,
+                'summary table':summary_table
                 }.get(case)
 
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
