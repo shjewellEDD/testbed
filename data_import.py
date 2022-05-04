@@ -185,7 +185,7 @@ class Dataset:
 
         spec_url = f'{self.url}'
 
-        # making vars a set eliminates duplicates, which cause HTML causes errors
+        # duplicate vars cause HTML causes errors, sets don't have duplicates
         vars = set(variables)
 
         if self.time_flag:
@@ -194,6 +194,10 @@ class Dataset:
 
             for var in vars:
                 if var is None:
+                    continue
+
+                # don't try to load non-existant variables, 'kay?
+                if var not in self.raw_vars:
                     continue
 
                 spec_url = f'{spec_url}%2C{var}'

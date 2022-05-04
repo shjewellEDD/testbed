@@ -33,8 +33,8 @@ urls = [{'label': 'Summary Mirror', 'value': 'https://dunkel.pmel.noaa.gov:9290/
 custom_sets = [{'label': 'XCO2 Mean',       'value': 'resids'},
                {'label': 'XCO2 Residuals',  'value': 'cals'},
                {'label': 'CO2 STDDEV',      'value': 'temp resids'},
-               {'label': 'CO2 Pres. Mean',  'value': 'stddev'},
-               {'label': 'CO2 Mean',        'value': 'resid stddev'}]
+               {'label': 'CO2 Pres. Mean',  'value': 'stddev'}]
+               #{'label': 'CO2 Mean',        'value': 'resid stddev'}]
 
 #dataset = data_import.Dataset(urls[0]['value'])
 
@@ -45,6 +45,19 @@ app = dash.Dash(__name__,
                 #requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
 #server = app.server
+
+filter_card = dbc.Card(
+    dbc.CardBody(
+        id='filter_card',
+        style={'backgroundColor': colors['Dark']},
+        children=[dcc.Checklist(id='filter1'),
+                  dcc.Checklist(id='filter2'),
+                  dcc.Checklist(id='filter3'),
+                  dcc.Checklist(id='filter4')
+        ]
+    )
+
+)
 
 tools_card = dbc.Card([
     dbc.CardBody(
@@ -63,10 +76,7 @@ tools_card = dbc.Card([
                 options=custom_sets,
                 value='resids',
                 clearable=False
-                ),
-            dhtml.Label(id='filter-label',
-                        title=''),
-            dcc.Checklist(id='filter-select')
+                )
             # dash_table.DataTable(
             #     id='datatable',
             #     #data=dataset.to_dict('records'),
@@ -90,6 +100,8 @@ app.layout = dhtml.Div([
             dbc.Row([dhtml.H1('ASVCO2 Validation Set')]),
             dbc.Row([
                 dbc.Col(children=[tools_card,
+                                  dhtml.H5('Filters'),
+                                  filter_card,
                                   dcc.RadioItems(id='image_mode',
                                                  options=['Dark', 'Light'],
                                                  value='Dark')
@@ -109,20 +121,19 @@ Callbacks
 # plot updating selection
 @app.callback(
     [Output('graphs', 'figure'),
-     #Output('datatable', 'data'),
-     #Output('datatable', 'columns'),
-     Output('filter-label', 'title'),
-     Output('filter-select', 'options'),
-     Output('filter-select', 'value')],
+     Output('filter_card', 'children')],
     [Input('select_set', 'value'),
      Input('select_display', 'value'),
-     Input('filter-select', 'value'),
-     Input('image_mode', 'value')
+     Input('image_mode', 'value'),
+     Input('filter1', 'value'),
+     Input('filter2', 'value'),
+     Input('filter3', 'value'),
+     Input('filter4', 'value')
      ])
 
-def load_plot(plot_set, plot_fig, filt, im_mode):
+def load_plot(plot_set, plot_fig, im_mode, filt_val1, filt_val2, filt_val3, filt_val4):
 
-    def off_ref(dset, filt):
+    def off_ref(dset, filt1, filt2, filt3, filt4):
         '''
         TODO:
             Hoverdata should be richer
@@ -141,28 +152,40 @@ def load_plot(plot_set, plot_fig, filt, im_mode):
         :return:
         '''
 
+
+        # get dataset
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE'])
 
-        if str(dash.callback_context.triggered[0]['prop_id']) == 'filter-select.value':
+        # filter block
+        #if str(dash.callback_context.triggered[0]['prop_id']) == 'filter1.value':
+        if 'filter' in str(dash.callback_context.triggered[0]['prop_id'].split('.')[0]):
 
-            if filt == []:
+            filt_card = dash.no_update
 
+            # if we're filtering everything, don't worry about plotting
+            if filt1 == []:
                 load_plots = make_subplots(rows=1, cols=1,
                                            subplot_titles=['Pressure'],
                                            shared_yaxes=False, shared_xaxes=True)
 
-                return load_plots, 'Out of Range', [1, 0], []
+                return load_plots, filt_card
 
             temp = []
 
-            for var in filt:
+            for var in filt1:
                 temp.append(df[df['OUT_OF_RANGE'] == var])
 
             df = pd.concat(temp)
 
         else:
-            filt = [0, 1]
+            # default filter card
+            filt_card = [dhtml.Label('Out of Range'),
+                         dcc.Checklist(id='filter1', options=[0, 1], value=[0, 1]),
+                         dcc.Checklist(id='filter2'),
+                         dcc.Checklist(id='filter3'),
+                         dcc.Checklist(id='filter4')]
+
 
         epoff = df[df['INSTRUMENT_STATE'] == 'EPOFF']
         apoff = df[df['INSTRUMENT_STATE'] == 'APOFF']
@@ -184,22 +207,10 @@ def load_plot(plot_set, plot_fig, filt, im_mode):
                                     xaxis_title='CO2 Gas Concentration'
                                     )
 
-        # dtable = dash_table.DataTable()
+        return load_plots, filt_card
 
-        # columns = [{'id': 'state', 'name': 'State'},
-        #           {'id': 'size', 'name': 'Size'}]
 
-        # table_df = pd.concat([epoff, apoff])
-        # drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
-        # sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
-
-        # table_data = [{'state': list(table_df['OUT_OF_RANGE'].unique())},
-        #               {'size': sizes}]
-
-        return load_plots, 'Out of Range', [1, 0], filt
-        # return load_plots, table_data, columns
-
-    def cal_ref(dset, filt):
+    def cal_ref(dset, filt1, filt2, filt3, filt4):
         '''
         Select serial and date
             serial: SN_ASVCO2
@@ -209,6 +220,12 @@ def load_plot(plot_set, plot_fig, filt, im_mode):
             gas:
         :return:
         '''
+
+        filt_card = [dhtml.Label(''),
+                     dcc.Checklist(id='filter1'),
+                     dcc.Checklist(id='filter2'),
+                     dcc.Checklist(id='filter3'),
+                     dcc.Checklist(id='filter4')]
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'])
@@ -238,24 +255,10 @@ def load_plot(plot_set, plot_fig, filt, im_mode):
                                     xaxis_title='CO2 Gas Concentration',
                                     )
 
-        # #dtable = dash_table.DataTable()
-        #
-        # columns = [{'id': 'state', 'name': 'State'},
-        #          {'id': 'size', 'name': 'Size'}]
-        #
-        # table_df = pd.concat([epoff, apoff])
-        # drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
-        # sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
-        #
-        # table_data = [{'state': list(table_df['INSTRUMENT_STATE'].unique())},
-        #                      {'size': sizes}]
-
-        return load_plots, '', []
-
-        #return table_data, columns
+        return load_plots, filt_card
 
 
-    def multi_ref(dset, filt):
+    def multi_ref(dset, filt1, filt2, filt3, filt4):
         '''
         Select serial, LICOR firmware, ASVCO2 firmware, date range
         Boolean temperature correct residual
@@ -265,8 +268,44 @@ def load_plot(plot_set, plot_fig, filt, im_mode):
             Add INSTRUMENT_STATE to hoverinfo
         '''
 
+
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2',
-                            'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_STDDEV_ASVCO2'])
+                            'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_STDDEV_ASVCO2', 'SN_ASVCO2', 'ASVCO2_firmware', 'CO2DETECTOR_firmware'])
+
+        # filter block
+        if 'filter' in str(dash.callback_context.triggered[0]['prop_id'].split('.')[0]):
+
+            filt_card = dash.no_update
+
+            # if we're filtering everything, don't worry about plotting
+            if filt1 == [] or filt2 == [] or filt3 == []:
+                load_plots = make_subplots(rows=1, cols=1,
+                                           shared_yaxes=False, shared_xaxes=True)
+
+                return load_plots, filt_card
+
+            temp = []
+
+            for var in filt1:
+                temp.append(df[df['SN_ASVCO2'] == var])
+            for var in filt2:
+                temp.append(df[df['CO2DETECTOR_firmware'] == var])
+            for var in filt1:
+                temp.append(df[df['ASVCO2_firmware'] == var])
+
+            df = pd.concat(temp)
+
+        else:
+            filt_card = [dhtml.Label('Serial #'),
+                         dcc.Checklist(id='filter1', options=list(df['SN_ASVCO2'].unique()),
+                                     value=list(df['SN_ASVCO2'].unique())),
+                         dhtml.Label('LiCOR Firmware'),
+                         dcc.Checklist(id='filter2', options=list(df['CO2DETECTOR_firmware'].unique()),
+                                     value=list(df['CO2DETECTOR_firmware'].unique())),
+                         dhtml.Label('ASVCO2 firmware'),
+                         dcc.Checklist(id='filter3', options=list(df['ASVCO2_firmware'].unique()),
+                                       value=list(df['ASVCO2_firmware'].unique())),
+                         dcc.Checklist(id='filter4')]
 
         load_plots = make_subplots(rows=2, cols=1,
                                    subplot_titles=['Pressure'],
@@ -294,22 +333,11 @@ def load_plot(plot_set, plot_fig, filt, im_mode):
                                     xaxis2_title='CO2 Gas Concentration',
                                     )
 
-        # #dtable = dash_table.DataTable()
-        #
-        # columns = [{'id': 'state', 'name': 'State'},
-        #          {'id': 'size', 'name': 'Size'}]
-        #
-        # table_df = pd.concat([epoff, apoff])
-        # drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
-        # sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
-        #
-        # table_data = [{'state': list(table_df['INSTRUMENT_STATE'].unique())},
-        #                      {'size': sizes}]
 
-        return load_plots, '', []
+        return load_plots, filt_card
 
 
-    def multi_stddev(df, filt):
+    def multi_stddev(dset, filt1, filt2, filt3, filt4):
         '''
         Select serial, LICOR firmware, ASVCO2 firmware, date range
         Boolean temperature correct residual
@@ -317,7 +345,71 @@ def load_plot(plot_set, plot_fig, filt, im_mode):
         :return:
         '''
 
-        return
+        df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
+                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'SN_ASVCO2', 'ASVCO2_firmware', 'CO2DETECTOR_firmware'])
+
+        # filter block
+        if 'filter' in str(dash.callback_context.triggered[0]['prop_id'].split('.')[0]):
+
+            filt_card = dash.no_update
+
+            # if we're filtering everything, don't worry about plotting
+            if filt1 == [] or filt2 == [] or filt3 == []:
+                load_plots = make_subplots(rows=1, cols=1,
+                                           shared_yaxes=False, shared_xaxes=True)
+
+                return load_plots, filt_card
+
+            temp = []
+
+            for var in filt1:
+                temp.append(df[df['SN_ASVCO2'] == var])
+            for var in filt2:
+                temp.append(df[df['CO2DETECTOR_firmware'] == var])
+            for var in filt1:
+                temp.append(df[df['ASVCO2_firmware'] == var])
+
+            df = pd.concat(temp)
+
+        else:
+            filt_card = [dhtml.Label('Serial #'),
+                         dcc.Checklist(id='filter1', options=list(df['SN_ASVCO2'].unique()),
+                                     value=list(df['SN_ASVCO2'].unique())),
+                         dhtml.Label('LiCOR Firmware'),
+                         dcc.Checklist(id='filter2', options=list(df['CO2DETECTOR_firmware'].unique()),
+                                     value=list(df['CO2DETECTOR_firmware'].unique())),
+                         dhtml.Label('ASVCO2 firmware'),
+                         dcc.Checklist(id='filter3', options=list(df['ASVCO2_firmware'].unique()),
+                                       value=list(df['ASVCO2_firmware'].unique())),
+                         dcc.Checklist(id='filter4')]
+
+
+        zcal = df[df['INSTRUMENT_STATE'] == 'ZPPCAL']
+        scal = df[df['INSTRUMENT_STATE'] == 'SPPCAL']
+
+        load_plots = make_subplots(rows=1, cols=1,
+                                   subplot_titles=['Pressure'],
+                                   shared_yaxes=False)
+
+        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_RESIDUAL_MEAN_ASVCO2'], name='ZPPCAL',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_RESIDUAL_MEAN_ASVCO2'], name='SPPCAL',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='ZPPCAL',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='SPPCAL',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+
+        load_plots['layout'].update(
+            yaxis_title='Residual',
+            xaxis_title='CO2 Gas Concentration',
+        )
+
+        return load_plot, filt_card
 
 
     def resid_and_stdev(df, filt):
@@ -340,7 +432,7 @@ def load_plot(plot_set, plot_fig, filt, im_mode):
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
     dataset = data_import.Dataset(plot_set)
-    plotters = switch_plot(plot_fig)(dataset, filt)
+    plotters = switch_plot(plot_fig)(dataset, filt_val1, filt_val2, filt_val3, filt_val4)
 
     plotters[0].update_layout(height=600,
         title=' ',
@@ -356,8 +448,8 @@ def load_plot(plot_set, plot_fig, filt, im_mode):
         margin=dict(l=25, r=25, b=25, t=25, pad=4)
     )
 
+    return plotters[0], plotters[1]
 
-    return plotters[0], plotters[1], plotters[2], plotters[3]
 
 if __name__ == '__main__':
     #app.run_server(host='0.0.0.0', port=8050, debug=True)
