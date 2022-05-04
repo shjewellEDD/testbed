@@ -234,7 +234,6 @@ set_card = dbc.Card([
             dcc.Dropdown(
                 id="select_eng",
                 #style={'backgroundColor': colors['background']},
-                #style={'backgroundColor': colors['background']},
                 options=prawlers,
                 value=prawlers[0]['value'],
                 clearable=False
@@ -260,9 +259,9 @@ table_card = dbc.Card([
         children=[dcc.Textarea(id='t_mean',
                                 value='',
                                 readOnly=True,
-                                # style={'width': '100%', 'height': 40}
-                                #        # 'backgroundColor': colors['background'],
-                                #        # 'textColor':       colors['text']},
+                                style={'width': '100%', 'height': 40,
+                                        #'backgroundColor': colors['background'],
+                                        'textColor':       colors['text']},
                                 ),
                     dash_table.DataTable(id='table',
                                          style_table={'backgroundColor': colors['background'],
@@ -347,12 +346,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
 
     eng_set = dataset_dict[dataset]
     new_data = eng_set.ret_data(start_date, end_date)
-    t_mean = ''
-    # colorscale = 'Blues'
-    #
-    # print(dataset)
-    #
-    # if dataset in ['TELONAS2Gen', 'M200Sci']:
+
     colorscale = px.colors.sequential.Viridis
 
     if select_var == 'trips_per_day':
@@ -362,7 +356,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
         columns = [{"name": 'Day', "id": 'days'},
                    {'name': select_var, 'id': 'ntrips'}]
 
-        t_mean = "Mean Trips per day: " + str(trip_set['ntrips'].mean())
+        t_mean = "Mean Trips per day: " + str(round(trip_set['ntrips'].mean(), 3))
 
         try:
             table_data = trip_set.to_dict('records')
@@ -377,7 +371,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
         columns = [{"name": 'Day', "id": 'days'},
                    {'name': select_var, 'id': 'nerrors'}]
 
-        t_mean = 'Mean errors per day ' + str(err_set['nerrors'].mean())
+        t_mean = 'Mean errors per day ' + str(round(err_set['nerrors'].mean(), 3))
 
         try:
             table_data = err_set.to_dict('records')
@@ -392,7 +386,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
         columns = [{"name": 'Day', "id": 'days'},
                    {'name': select_var, 'id': 'ntrips'}]
 
-        t_mean = 'Mean errors per day ' + str(sci_set['ntrips'].mean())
+        t_mean = 'Mean errors per day ' + str(round(sci_set['ntrips'].mean(), 3))
 
         try:
             table_data = sci_set.to_dict('records')
@@ -408,7 +402,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
                    {'name': select_var, 'id': select_var}]
 
         try:
-            t_mean = 'Average ' + select_var + ': ' + str(new_data.loc[:, select_var].mean())
+            t_mean = 'Average ' + select_var + ': ' + str(round(new_data.loc[:, select_var].mean(), 3))
         except TypeError:
             t_mean = ''
 
@@ -426,7 +420,6 @@ def plot_evar(dataset, select_var, start_date, end_date):
         paper_bgcolor=colors['background'],
         font_color=colors['text'],
     )
-
 
     return efig, table_data, columns, t_mean
 

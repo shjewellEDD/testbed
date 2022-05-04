@@ -2,12 +2,8 @@
 TODO:
     Improvement:
         Color:
-            Probably should update_layout wiht color instead of px.scatter
-        Data selection:
-            Break up Prawler from set
-        Profile plotting, see Scott's email
-        Improve style sheet
-        Generalize plotting, so I don't need separate functions to do it.
+            Add color to SB depth
+            Let user select color driver from dropdown
         Date errors:
             M200 science has a bunch of dates from the 70s and 80s
             How do we deal with this
@@ -236,7 +232,6 @@ set_card = dbc.Card([
             dcc.Dropdown(
                 id="select_eng",
                 #style={'backgroundColor': colors['background']},
-                #style={'backgroundColor': colors['background']},
                 options=prawlers,
                 value=prawlers[0]['value'],
                 clearable=False
@@ -263,7 +258,7 @@ table_card = dbc.Card([
                                 value='',
                                 readOnly=True,
                                 style={'width': '100%', 'height': 40,
-                                       'backgroundColor': colors['background'],
+                                       #'backgroundColor': colors['background']}
                                        'textColor':       colors['text']},
                                 ),
                     dash_table.DataTable(id='table',
@@ -278,8 +273,7 @@ table_card = dbc.Card([
 ])
 
 graph_card = dbc.Card(
-    [#dbc.CardHeader("Here's a graph"),
-     dbc.CardBody([dcc.Graph(id='graph')
+    [dbc.CardBody([dcc.Graph(id='graph')
                    ])
     ]
 )
@@ -287,9 +281,9 @@ graph_card = dbc.Card(
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/prawler/m200/',
+#                requests_pathname_prefix='/prawler/m200/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+#server = app.server
 
 app.layout = dhtml.Div([
    #dbc.Container([
@@ -326,14 +320,13 @@ def change_prawler(dataset):
     eng_set = dataset_dict[dataset]
 
     min_date_allowed = eng_set.t_start.date(),
-    max_date_allowed = eng_set.t_end.date(),
+    max_date_allowed = eng_set.t_end.date()
     start_date = (eng_set.t_end - datetime.timedelta(days=14)).date(),
     end_date = eng_set.t_end.date()
     first_var = eng_set.ret_vars()[0]['value']
 
 
-
-    return dataset_dict[dataset].ret_vars(), str(min_date_allowed[0]), str(max_date_allowed[0]), str(start_date[0]), str(end_date), first_var
+    return dataset_dict[dataset].ret_vars(), str(min_date_allowed), str(max_date_allowed), str(start_date[0]), str(end_date), first_var
 
 #engineering data selection
 @app.callback(
@@ -350,12 +343,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
 
     eng_set = dataset_dict[dataset]
     new_data = eng_set.ret_data(start_date, end_date)
-    t_mean = ''
-    # colorscale = 'Blues'
-    #
-    # print(dataset)
-    #
-    # if dataset in ['TELONAS2Gen', 'M200Sci']:
+
     colorscale = px.colors.sequential.Viridis
 
     if select_var == 'trips_per_day':
@@ -365,7 +353,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
         columns = [{"name": 'Day', "id": 'days'},
                    {'name': select_var, 'id': 'ntrips'}]
 
-        t_mean = "Mean Trips per day: " + str(trip_set['ntrips'].mean())
+        t_mean = "Mean Trips per day: " + str(round(trip_set['ntrips'].mean(), 3))
 
         try:
             table_data = trip_set.to_dict('records')
@@ -380,7 +368,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
         columns = [{"name": 'Day', "id": 'days'},
                    {'name': select_var, 'id': 'nerrors'}]
 
-        t_mean = 'Mean errors per day ' + str(err_set['nerrors'].mean())
+        t_mean = 'Mean errors per day ' + str(round(err_set['nerrors'].mean(), 3))
 
         try:
             table_data = err_set.to_dict('records')
@@ -395,7 +383,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
         columns = [{"name": 'Day', "id": 'days'},
                    {'name': select_var, 'id': 'ntrips'}]
 
-        t_mean = 'Mean errors per day ' + str(sci_set['ntrips'].mean())
+        t_mean = 'Mean errors per day ' + str(round(sci_set['ntrips'].mean(), 3))
 
         try:
             table_data = sci_set.to_dict('records')
@@ -411,7 +399,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
                    {'name': select_var, 'id': select_var}]
 
         try:
-            t_mean = 'Average ' + select_var + ': ' + str(new_data.loc[:, select_var].mean())
+            t_mean = 'Average ' + select_var + ': ' + str(round(new_data.loc[:, select_var].mean(), 3))
         except TypeError:
             t_mean = ''
 
@@ -429,10 +417,6 @@ def plot_evar(dataset, select_var, start_date, end_date):
         paper_bgcolor=colors['background'],
         font_color=colors['text'],
     )
-
-    # efig.style(
-    #     height=700
-    # )
 
     return efig, table_data, columns, t_mean
 
