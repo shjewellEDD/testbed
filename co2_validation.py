@@ -50,13 +50,6 @@ tools_card = dbc.Card([
     dbc.CardBody(
            style={'backgroundColor': colors['Dark']},
            children=[
-                # dcc.DatePickerRange(
-                # id='date-picker',
-                # min_date_allowed=dataset.t_start,
-                # max_date_allowed=dataset.t_end,
-                # start_date=dataset.t_end - datetime.timedelta(days=14),
-                # end_date=dataset.t_end
-                # ),
             dhtml.Label(['Select Set']),
                   dcc.Dropdown(
                       id="select_set",
@@ -71,13 +64,16 @@ tools_card = dbc.Card([
                 value='resids',
                 clearable=False
                 ),
-            dash_table.DataTable(
-                id='datatable',
-                #data=dataset.to_dict('records'),
-                # columns=[{'name': 'Serial Number', 'id': 'serial'},
-                #          {'name': 'Size', 'id': 'size'},
-                #          {'name': 'State', 'id': 'state'}]
-                )
+            dhtml.Label(id='filter-label',
+                        title=''),
+            dcc.Checklist(id='filter-select')
+            # dash_table.DataTable(
+            #     id='datatable',
+            #     #data=dataset.to_dict('records'),
+            #     # columns=[{'name': 'Serial Number', 'id': 'serial'},
+            #     #          {'name': 'Size', 'id': 'size'},
+            #     #          {'name': 'State', 'id': 'state'}]
+            #     )
     ])
 ])
 
@@ -113,18 +109,20 @@ Callbacks
 # plot updating selection
 @app.callback(
     [Output('graphs', 'figure'),
-     Output('datatable', 'data'),
-     Output('datatable', 'columns')],
+     #Output('datatable', 'data'),
+     #Output('datatable', 'columns'),
+     Output('filter-label', 'title'),
+     Output('filter-select', 'options'),
+     Output('filter-select', 'value')],
     [Input('select_set', 'value'),
      Input('select_display', 'value'),
+     Input('filter-select', 'value'),
      Input('image_mode', 'value')
-     # Input('date-picker', 'start_date'),
-     # Input('date-picker', 'end_date')
      ])
 
-def load_plot(plot_set, plot_fig, im_mode):
+def load_plot(plot_set, plot_fig, filt, im_mode):
 
-    def off_ref(dset):
+    def off_ref(dset, filt):
         '''
         TODO:
             Hoverdata should be richer
@@ -144,7 +142,27 @@ def load_plot(plot_set, plot_fig, im_mode):
         '''
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
-                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'])
+                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE'])
+
+        if str(dash.callback_context.triggered[0]['prop_id']) == 'filter-select.value':
+
+            if filt == []:
+
+                load_plots = make_subplots(rows=1, cols=1,
+                                           subplot_titles=['Pressure'],
+                                           shared_yaxes=False, shared_xaxes=True)
+
+                return load_plots, 'Out of Range', [1, 0], []
+
+            temp = []
+
+            for var in filt:
+                temp.append(df[df['OUT_OF_RANGE'] == var])
+
+            df = pd.concat(temp)
+
+        else:
+            filt = [0, 1]
 
         epoff = df[df['INSTRUMENT_STATE'] == 'EPOFF']
         apoff = df[df['INSTRUMENT_STATE'] == 'APOFF']
@@ -168,20 +186,20 @@ def load_plot(plot_set, plot_fig, im_mode):
 
         # dtable = dash_table.DataTable()
 
-        columns = [{'id': 'state', 'name': 'State'},
-                 {'id': 'size', 'name': 'Size'}]
+        # columns = [{'id': 'state', 'name': 'State'},
+        #           {'id': 'size', 'name': 'Size'}]
 
-        table_df = pd.concat([epoff, apoff])
-        drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
-        sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
+        # table_df = pd.concat([epoff, apoff])
+        # drivers = [list(table_df['INSTRUMENT_STATE'].unique()), list(table_df.groupby('INSTRUMENT_STATE').size())]
+        # sizes = [str(x[0]) + ", " + str(x[1]) for x in drivers]
 
-        table_data = [{'state': list(table_df['OUT_OF_RANGE'].unique())},
-                      {'size': sizes}]
+        # table_data = [{'state': list(table_df['OUT_OF_RANGE'].unique())},
+        #               {'size': sizes}]
 
-        return load_plots, table_data, columns
-        # return load_plots
+        return load_plots, 'Out of Range', [1, 0], filt
+        # return load_plots, table_data, columns
 
-    def cal_ref(dset):
+    def cal_ref(dset, filt):
         '''
         Select serial and date
             serial: SN_ASVCO2
@@ -232,12 +250,12 @@ def load_plot(plot_set, plot_fig, im_mode):
         # table_data = [{'state': list(table_df['INSTRUMENT_STATE'].unique())},
         #                      {'size': sizes}]
 
-        return load_plots  # , table_data, columns
+        return load_plots, '', []
 
-        #return
+        #return table_data, columns
 
 
-    def multi_ref(dset):
+    def multi_ref(dset, filt):
         '''
         Select serial, LICOR firmware, ASVCO2 firmware, date range
         Boolean temperature correct residual
@@ -288,10 +306,10 @@ def load_plot(plot_set, plot_fig, im_mode):
         # table_data = [{'state': list(table_df['INSTRUMENT_STATE'].unique())},
         #                      {'size': sizes}]
 
-        return load_plots  # , table_data, columns
+        return load_plots, '', []
 
 
-    def multi_stddev(df):
+    def multi_stddev(df, filt):
         '''
         Select serial, LICOR firmware, ASVCO2 firmware, date range
         Boolean temperature correct residual
@@ -302,7 +320,7 @@ def load_plot(plot_set, plot_fig, im_mode):
         return
 
 
-    def resid_and_stdev(df):
+    def resid_and_stdev(df, filt):
         '''
         Select random variable
         Histogram of marginal probability dists
@@ -322,9 +340,9 @@ def load_plot(plot_set, plot_fig, im_mode):
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
     dataset = data_import.Dataset(plot_set)
-    plotters = switch_plot(plot_fig)(dataset)
+    plotters = switch_plot(plot_fig)(dataset, filt)
 
-    plotters.update_layout(height=600,
+    plotters[0].update_layout(height=600,
         title=' ',
         hovermode='x unified',
         xaxis_showticklabels=True,
@@ -339,7 +357,7 @@ def load_plot(plot_set, plot_fig, im_mode):
     )
 
 
-    return [plotters]
+    return plotters[0], plotters[1], plotters[2], plotters[3]
 
 if __name__ == '__main__':
     #app.run_server(host='0.0.0.0', port=8050, debug=True)
