@@ -34,8 +34,8 @@ custom_sets = [{'label': 'EPOFF & APOFF vs Gas Concentration',       'value': 'r
                {'label': 'ZPCAL & SPPCAL vs Ref Gas Concentration',  'value': 'cals'},
                {'label': 'CO2 AVG & STDDEV',                        'value': 'temp resids'},
                {'label': 'CO2 Pres. Mean',                          'value': 'stddev'},
-               {'label': 'Resid vs Time',                           'value': 'resid stddev'},
-               {'label': 'STDDEV Histogram',                        'value': 'stddev hist'},
+               {'label': 'Residual vs Time',                           'value': 'resid stddev'},
+               {'label': 'Residual Histogram',                        'value': 'stddev hist'},
                {'label': 'Summary Table',                           'value': 'summary table'}]
 
 #dataset = data_import.Dataset(urls[0]['value'])
@@ -486,16 +486,105 @@ def load_plot(plot_set, plot_fig, im_mode, filt_val1, filt_val2, filt_val3, filt
 
         return load_plots, filt_card
 
-    def summary_table(dset, filt1, filt2, filt3, filt4):
-
-        return
-
     def stddev_hist(dset, filt1, filt2, filt3, filt4):
         '''
         Select random variable
         Histogram of marginal probability dists
         :return:
         '''
+
+        resid_sets = ['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2']
+
+        df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
+                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'INSTRUMENT_STATE'])
+
+        load_plots = make_subplots(rows=1, cols=1,
+                                   subplot_titles=['Residual'],
+                                   shared_yaxes=False)
+
+        # filter block
+        if 'filter' in str(dash.callback_context.triggered[0]['prop_id'].split('.')[0]):
+
+            filt_card = dash.no_update
+
+            # if we're filtering everything, don't worry about plotting
+            if filt1 == [] or filt2 == []:
+                load_plots = make_subplots(rows=1, cols=1,
+                                           shared_yaxes=False, shared_xaxes=True)
+
+                return load_plots, filt_card
+
+            temp = []
+
+            for var in filt2:
+                temp.append(df[df['INSTRUMENT_STATE'] == var])
+
+            df = pd.concat(temp)
+
+            for co2_set in filt1:
+                load_plots.add_trace(go.Histogram(x=df[co2_set]), row=1, col=1)
+
+        else:
+            filt_card = [dhtml.Label('Residual Type'),
+                         dcc.Checklist(id='filter1', options=resid_sets,
+                                       value=resid_sets),
+                         dhtml.Label('Instrument State'),
+                         dcc.Checklist(id='filter2', options=['APOFF', 'EPOFF'],
+                                       value=['APOFF', 'EPOFF']),
+                         dhtml.Label(''),
+                         dcc.Checklist(id='filter3'),
+                         dhtml.Label(''),
+                         dcc.Checklist(id='filter4')]
+
+            for co2_set in resid_sets:
+                load_plots.add_trace(go.Histogram(x=df[co2_set]), row=1, col=1)
+
+        load_plots['layout'].update(
+            yaxis_title='Residuals'
+        )
+
+        return load_plots, filt_card
+
+
+    def summary_table(dset, filt1, filt2, filt3, filt4):
+        '''
+        Returns
+
+        :return:
+        '''
+
+        load_plots = make_subplots(rows=1, cols=1,
+                                   subplot_titles=['Residual'],
+                                   shared_yaxes=False)
+
+        df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
+                                      'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_REF_LAB',
+                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'INSTRUMENT_STATE'])
+
+        # filter block
+        if 'filter' in str(dash.callback_context.triggered[0]['prop_id'].split('.')[0]):
+
+            filt_card = dash.no_update
+
+            # if we're filtering everything, plotting is unnecessary
+            if filt1 == [] :
+                load_plots = make_subplots(rows=1, cols=1,
+                                           shared_yaxes=False, shared_xaxes=True)
+
+                return load_plots, filt_card
+
+            temp = []
+
+            for var in filt2:
+                temp.append(df[df['INSTRUMENT_STATE'] == var])
+
+            df = pd.concat(temp)
+
+            for co2_set in filt1:
+                load_plots.add_trace(go.Histogram(x=df[co2_set]), row=1, col=1)
+
+
+        return
 
 
     def switch_plot(case):
