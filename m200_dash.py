@@ -273,8 +273,7 @@ table_card = dbc.Card([
 ])
 
 graph_card = dbc.Card(
-    [dbc.CardBody([dcc.Graph(id='graph')
-                   ])
+    [dbc.CardBody([dcc.Loading(dcc.Graph(id='graph'))])
     ]
 )
 
