@@ -32,12 +32,22 @@ def from_erddap_date(edate):
     if pd.isna(edate):
         return edate
 
-    redate = datetime.datetime(year=int(edate[:4]),
-                               month=int(edate[5:7]),
-                               day=int(edate[8:10]),
-                               hour=int(edate[11:13]),
-                               minute=int(edate[14:16]),
-                               second=int(edate[17:19]))
+    if len(edate) > 10:
+
+        redate = datetime.datetime(year=int(edate[:4]),
+                                   month=int(edate[5:7]),
+                                   day=int(edate[8:10]),
+                                   hour=int(edate[11:13]),
+                                   minute=int(edate[14:16]),
+                                   second=int(edate[17:19]))
+
+    else:
+        redate = datetime.datetime(year=int(edate[:4]),
+                                   month=int(edate[5:7]),
+                                   day=int(edate[8:10]),
+                                   hour=0,
+                                   minute=0,
+                                   second=0)
 
     return redate
 

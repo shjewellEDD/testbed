@@ -48,15 +48,16 @@ colors = {'Dark': '#111111', 'Light': '#443633', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+#                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+#server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
         id='filter_card',
         style={'backgroundColor': colors['Dark']},
-        children=[dcc.Checklist(id='filter1'),
+        children=[dcc.DatePickerRange(id='date-picker'),
+                  dcc.Checklist(id='filter1'),
                   dcc.Checklist(id='filter2'),
                   dcc.Checklist(id='filter3'),
                   dcc.Checklist(id='filter4'),
@@ -82,7 +83,8 @@ tools_card = dbc.Card([
                 id="select_display",
                 options=custom_sets,
                 value='resids',
-                clearable=False
+                clearable=False,
+                persistence=True
                 )
             # dash_table.DataTable(
             #     id='datatable',
@@ -109,13 +111,13 @@ app.layout = dhtml.Div([
             dbc.Row([
                 dbc.Col(children=[tools_card,
                                   dhtml.H5('Filters'),
-                                  filter_card,
+                                  dcc.Loading(filter_card),
                                   dcc.RadioItems(id='image_mode',
                                                  options=['Dark', 'Light'],
                                                  value='Dark')
                                   ],
                         width=3),
-                dbc.Col(children=graph_card, width=9)
+                dbc.Col(children=dcc.Loading(graph_card), width=9)
             ])
         ])
     )
@@ -125,6 +127,25 @@ app.layout = dhtml.Div([
 ========================================================================================================================
 Callbacks
 '''
+
+#changing set updates datepicker
+@app.callback(
+    [Output('date-picker', 'min_date_allowed'),
+    Output('date-picker', 'max_date_allowed'),
+    Output('date-picker', 'start_date'),
+    Output('date-picker', 'end_date')],
+    Input('select_set', 'value'))
+
+def change_set(dataset_url):
+
+    dataset = data_import.Dataset(dataset_url)
+
+    min_date_allowed = dataset.t_start.date()
+    max_date_allowed = dataset.t_end.date()
+    start_date = dataset.t_start.date()
+    end_date = dataset.t_end.date()
+
+    return min_date_allowed, max_date_allowed, start_date, end_date
 
 # plot updating selection
 @app.callback(
@@ -137,10 +158,12 @@ Callbacks
     [State('filter1', 'value'),
      State('filter2', 'value'),
      State('filter3', 'value'),
-     State('filter4', 'value')
+     State('filter4', 'value'),
+     State('date-picker', 'start_date'),
+     State('date-picker', 'end_date')
      ])
 
-def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
+def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, tstart, tend):
 
     def off_ref(dset, update):
         '''
@@ -167,7 +190,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
 
         # filter block
         changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-        print(changed_id)
         if 'update.n_clicks' in changed_id:
 
             filt_card = dash.no_update
@@ -194,7 +216,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
                 filt_list2.append({'label': var, 'value': var})
 
             # default filter card
-            filt_card = [dhtml.Label('Out of Range'),
+            filt_card = [dcc.DatePickerRange(id='date-picker'),
+                         dhtml.Label('Out of Range'),
                          dcc.Checklist(id='filter1', options=[0, 1], value=[0, 1]),
                          dhtml.Label('Reference Range'),
                          dcc.Dropdown(id='filter2', options=filt_list2, value=df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()[0],
@@ -216,17 +239,16 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
         load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='APOFF Dry TCORR', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
 
-        load_plots['layout'].update(yaxis_title='Residual',
-                                    xaxis_title='Reference Gas Concentration'
+        load_plots['layout'].update(yaxis_title='Residual (ppm)',
+                                    xaxis_title='Reference Gas Concentration (ppm)'
                                     )
 
         return dcc.Graph(figure=load_plots), filt_card
 
 
-    def cal_ref(dset, filt1, filt2, filt3, filt4):
+    def cal_ref(dset, update):
         '''
         TODO:
-
 
         Select serial and date
             serial: SN_ASVCO2
@@ -237,21 +259,66 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
         :return:
         '''
 
-        filt_card = [dhtml.Label(''),
-                     dcc.Checklist(id='filter1'),
-                     dcc.Checklist(id='filter2'),
-                     dcc.Checklist(id='filter3'),
-                     dcc.Checklist(id='filter4')]
+        df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE',
+                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_REF_LAB_TAG'])
 
-        df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
-                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'])
+        load_plots = make_subplots(rows=1, cols=1,
+                                   subplot_titles=['Cal vs Reference'],
+                                   shared_yaxes=False)
+
+        # filter block
+        changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+        if 'update.n_clicks' in changed_id:
+
+            filt_card = dash.no_update
+
+            # if we're filtering everything, don't worry about plotting
+            if filt1 == [] or filt2 == []:
+
+                return dcc.Graph(figure=load_plots), filt_card
+
+            temp = []
+
+            for var in filt1:
+                temp.append(df[df['OUT_OF_RANGE'] == var])
+            for var in filt2:
+                temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
+
+            df = pd.concat(temp)
+
+        # if we are just changing pages, then we need to refresh the filter card
+        else:
+
+            # averaging block (in development)
+            # filt_list2 = []
+            # for var in list(df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()):
+            #     filt_list2.append({'label': var, 'value': var})
+
+            filt_list2 = []
+            for var in list(df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()):
+                filt_list2.append({'label': var, 'value': var})
+
+            filt_card = [dcc.DatePickerRange(id='date-picker'),
+                         dhtml.Label('Out of Range'),
+                         dcc.Checklist(id='filter1', options=[0, 1], value=[0, 1]),
+                         dhtml.Label('Reference Range'),
+                         dcc.Dropdown(id='filter2', options=filt_list2,
+                                      value=df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()[0],
+                                      multi=True, clearable=True, persistence=True),
+                         dcc.Checklist(id='filter3'),
+                         dcc.Checklist(id='filter4'),
+                         dhtml.Button('Update Filter', id='update')]
+
 
         zcal = df[df['INSTRUMENT_STATE'] == 'ZPPCAL']
         scal = df[df['INSTRUMENT_STATE'] == 'SPPCAL']
 
-        load_plots = make_subplots(rows=1, cols=1,
-                                   subplot_titles=['Pressure'],
-                                   shared_yaxes=False)
+        ref = []
+        mean_co2 = []
+        tcorr_mean_co2 = []
+        for ref in df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique():
+            temp = df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var]
+
 
         load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_RESIDUAL_MEAN_ASVCO2'], name='ZPPCAL',
                                hoverinfo='x+y+name',
@@ -259,22 +326,22 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
         load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_RESIDUAL_MEAN_ASVCO2'], name='SPPCAL',
                                hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='ZPPCAL',
+        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='ZPPCAL TCORR',
                                hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='SPPCAL',
+        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='SPPCAL TCORR',
                                hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
 
         load_plots['layout'].update(
-                                    yaxis_title='Residual',
-                                    xaxis_title='CO2 Gas Concentration',
+                                    yaxis_title='Residual (ppm)',
+                                    xaxis_title='Reference Gas (ppm)',
                                     )
 
-        return load_plots, filt_card
+        return dcc.Graph(figure=load_plots), filt_card
 
 
-    def multi_ref(dset, filt1, filt2, filt3, filt4):
+    def multi_ref(dset, upadte):
         '''
         Select serial, LICOR firmware, ASVCO2 firmware, date range
         Boolean temperature correct residual
@@ -296,7 +363,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [] or filt2 == [] or filt3 == []:
+            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == []:
                 load_plots = make_subplots(rows=1, cols=1,
                                            shared_yaxes=False, shared_xaxes=True)
 
@@ -310,11 +377,14 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
                 temp.append(df[df['CO2DETECTOR_firmware'] == var])
             for var in filt3:
                 temp.append(df[df['ASVCO2_firmware'] == var])
+            for var in filt4:
+                temp.append(df[df['last_ASVCO2_validation'] == var])
 
             df = pd.concat(temp)
 
         else:
-            filt_card = [dhtml.Label('Serial #'),
+            filt_card = [dcc.DatePickerRange(id='date-picker'),
+                         dhtml.Label('Serial #'),
                          dcc.Checklist(id='filter1', options=list(df['SN_ASVCO2'].unique()),
                                      value=list(df['SN_ASVCO2'].unique())),
                          dhtml.Label('LiCOR Firmware'),
@@ -323,7 +393,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
                          dhtml.Label('ASVCO2 firmware'),
                          dcc.Checklist(id='filter3', options=list(df['ASVCO2_firmware'].unique()),
                                        value=list(df['ASVCO2_firmware'].unique())),
-                         dcc.Checklist(id='filter4')]
+                         dcc.Checklist(id='filter4'),
+                         dhtml.Button('Update Filter', id='update')]
 
         load_plots = make_subplots(rows=2, cols=1,
                                    subplot_titles=['Pressure'],
@@ -331,17 +402,17 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
 
         load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='EPOFF', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='EPOFF', hoverinfo='x+y+name',
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='EPOFF TCORR', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
         load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='APOFF', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='APOFF', hoverinfo='x+y+name',
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='APOFF TCORR', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
 
-        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_STDDEV_ASVCO2'],
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_STDDEV_ASVCO2'], name='Residual STDDEV',
                                hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=2, col=1)
-        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_STDDEV_ASVCO2'],
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_STDDEV_ASVCO2'], name='CO2 STDDEV',
                                hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=2, col=1)
 
@@ -352,10 +423,10 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
                                     )
 
 
-        return load_plots, filt_card
+        return dcc.Graph(figure=load_plots), filt_card
 
 
-    def multi_stddev(dset, filt1, filt2, filt3, filt4):
+    def multi_stddev(dset, update):
         '''
         Select serial, LICOR firmware, ASVCO2 firmware, date range
         Boolean temperature correct residual
@@ -363,7 +434,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
         :return:
 
         TODO:
-            Check axes -- doesn't match hoverdata
+            Check axes
             Add date range
             Add Temp corrected
             Check y axes
@@ -379,7 +450,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [] or filt2 == [] or filt3 == []:
+            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == []:
                 load_plots = make_subplots(rows=1, cols=1,
                                            shared_yaxes=False, shared_xaxes=True)
 
@@ -397,6 +468,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
             df = pd.concat(temp)
 
         else:
+
+            filt_list4 = []
+            for var in list(df['last_ASVCO2_validation'].unique()):
+                filt_list4.append({'label': var, 'value': var})
+
             filt_card = [dhtml.Label('Serial #'),
                          dcc.Checklist(id='filter1', options=list(df['SN_ASVCO2'].unique()),
                                      value=list(df['SN_ASVCO2'].unique())),
@@ -406,7 +482,10 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
                          dhtml.Label('ASVCO2 firmware'),
                          dcc.Checklist(id='filter3', options=list(df['ASVCO2_firmware'].unique()),
                                        value=list(df['ASVCO2_firmware'].unique())),
-                         dcc.Checklist(id='filter4')]
+                         dhtml.Label('Last Validation'),
+                         dcc.Dropdown(id='filter4', options=filt_list4, value=list(df['last_ASVCO2_validation'].unique()),
+                                      persistence=True, clearable=True),
+                         dhtml.Button('Update Filter', id='update')]
 
 
         zcal = df[df['INSTRUMENT_STATE'] == 'ZPPCAL']
@@ -434,10 +513,10 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
             xaxis_title='CO2 Gas Concentration',
         )
 
-        return load_plots, filt_card
+        return dcc.Graph(figure=load_plots), filt_card
 
 
-    def resid_and_stdev(dset, filt1, filt2, filt3, filt4):
+    def resid_and_stdev(dset, update):
         '''
         Select serial, LICOR firmware, ASVCO2 firmware, date range
         Boolean temperature correct residual
@@ -482,7 +561,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
             df = pd.concat(temp)
 
         else:
-            filt_card = [dhtml.Label('Serial #'),
+            filt_card = [dcc.DatePickerRange(id='date-picker'),
+                         dhtml.Label('Serial #'),
                          dcc.Checklist(id='filter1', options=list(df['SN_ASVCO2'].unique()),
                                        value=list(df['SN_ASVCO2'].unique())),
                          dhtml.Label('LiCOR Firmware'),
@@ -493,7 +573,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
                                        value=list(df['ASVCO2_firmware'].unique())),
                          dhtml.Label('Last Validation'),
                          dcc.Checklist(id='filter4', options=list(df['last_ASVCO2_validation'].unique()),
-                                       value=list(df['last_ASVCO2_validation'].unique()))]
+                                       value=list(df['last_ASVCO2_validation'].unique())),
+                         dhtml.Button('Update Filter', id='update')]
 
         load_plots = make_subplots(rows=1, cols=1,
                                    subplot_titles=['Residual Over Time'],
@@ -510,9 +591,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
             yaxis_title='Residual'
         )
 
-        return load_plots, filt_card
+        return dcc.Graph(figure=load_plots), filt_card
 
-    def stddev_hist(dset, filt1, filt2, filt3, filt4):
+    def stddev_hist(dset, update):
         '''
         Select random variable
         Histogram of marginal probability dists
@@ -558,7 +639,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
                 load_plots.add_trace(go.Histogram(x=df[co2_set]), row=1, col=1)
 
         else:
-            filt_card = [dhtml.Label('Residual Type'),
+            filt_card = [dcc.DatePickerRange(id='date-picker'),
+                         dhtml.Label('Residual Type'),
                          dcc.Checklist(id='filter1', options=resid_sets,
                                        value=resid_sets),
                          dhtml.Label('Instrument State'),
@@ -567,7 +649,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
                          dhtml.Label(''),
                          dcc.Checklist(id='filter3'),
                          dhtml.Label(''),
-                         dcc.Checklist(id='filter4')]
+                         dcc.Checklist(id='filter4'),
+                         dhtml.Button('Update Filter', id='update')]
 
             for co2_set in resid_sets:
                 load_plots.add_trace(go.Histogram(x=df[co2_set]), row=1, col=1)
@@ -576,10 +659,10 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
             yaxis_title='Residuals'
         )
 
-        return load_plots, filt_card
+        return dcc.Graph(figure=load_plots), filt_card
 
 
-    def summary_table(dset, filt1, filt2, filt3, filt4):
+    def summary_table(dset, update):
         '''
         Returns
 
@@ -632,7 +715,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
 
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
-    dataset = data_import.Dataset(plot_set)
+    dataset = data_import.Dataset(plot_set, window_start=tstart, window_end=tend)
     plotters = switch_plot(plot_fig)(dataset, update)
 
     if plot_fig == 'summary table':
@@ -641,7 +724,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4):
     else:
         plotters[0].figure.update_layout(height=600,
             title=' ',
-            hovermode='x unified',
+            #hovermode='x unified',
             xaxis_showticklabels=True,
             yaxis_fixedrange=True,
             plot_bgcolor=colors[im_mode],
@@ -660,6 +743,7 @@ if __name__ == '__main__':
     #app.run_server(host='0.0.0.0', port=8050, debug=True)
 
     app.run_server(debug=True)
+    #app.callback(Output('output', 'children')(change_set))
 
 
     # # table updating selection
