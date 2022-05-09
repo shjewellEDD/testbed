@@ -34,13 +34,13 @@ resid_vars = ['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_RESIDUAL_STDDEV_ASVCO2', ' CO2_DR
 
 urls = [{'label': 'Summary Mirror', 'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/asvco2_gas_validation_summary_mirror.csv'}]
 
-custom_sets = [{'label': 'EPOFF & APOFF vs Gas Concentration',       'value': 'resids'},
-               {'label': 'ZPCAL & SPPCAL vs Ref Gas Concentration',  'value': 'cals'},
-               {'label': 'CO2 AVG & STDDEV',                        'value': 'temp resids'},
-               {'label': 'CO2 Pres. Mean',                          'value': 'stddev'},
-               {'label': 'Residual vs Time',                           'value': 'resid stddev'},
-               {'label': 'Residual Histogram',                        'value': 'stddev hist'},
-               {'label': 'Summary Table',                           'value': 'summary table'}]
+custom_sets = [{'label': 'EPOFF & APOFF vs Ref Gas',    'value': 'resids'},
+               {'label': 'ZPCAL & SPPCAL vs Ref Gas',   'value': 'cals'},
+               {'label': 'CO2 AVG & STDDEV',            'value': 'temp resids'},
+               {'label': 'CO2 Pres. Mean',              'value': 'stddev'},
+               {'label': 'Residual vs Time',            'value': 'resid stddev'},
+               {'label': 'Residual Histogram',          'value': 'stddev hist'},
+               {'label': 'Summary Table',               'value': 'summary table'}]
 
 #dataset = data_import.Dataset(urls[0]['value'])
 
@@ -313,11 +313,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
         zcal = df[df['INSTRUMENT_STATE'] == 'ZPPCAL']
         scal = df[df['INSTRUMENT_STATE'] == 'SPPCAL']
 
-        ref = []
-        mean_co2 = []
-        tcorr_mean_co2 = []
-        for ref in df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique():
-            temp = df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var]
+        # ref = []
+        # mean_co2 = []
+        # tcorr_mean_co2 = []
+        # for ref in df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique():
+        #     temp = df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var]
 
 
         load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_RESIDUAL_MEAN_ASVCO2'], name='ZPPCAL',
@@ -383,15 +383,24 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
             df = pd.concat(temp)
 
         else:
+
+            filt_list1 = []
+            filt_list3 = []
+
+            for var in df['SN_ASVCO2'].unique():
+                filt_list1.append({'label': var, 'value': var})
+            for var in df['ASVCO2_firmware'].unique():
+                filt_list3.append({'label': var, 'value': var})
+
             filt_card = [dcc.DatePickerRange(id='date-picker'),
                          dhtml.Label('Serial #'),
-                         dcc.Checklist(id='filter1', options=list(df['SN_ASVCO2'].unique()),
+                         dcc.Dropdown(id='filter1', options=filt_list1, clearable=True, multi=True,
                                      value=list(df['SN_ASVCO2'].unique())),
                          dhtml.Label('LiCOR Firmware'),
                          dcc.Checklist(id='filter2', options=list(df['CO2DETECTOR_firmware'].unique()),
                                      value=list(df['CO2DETECTOR_firmware'].unique())),
                          dhtml.Label('ASVCO2 firmware'),
-                         dcc.Checklist(id='filter3', options=list(df['ASVCO2_firmware'].unique()),
+                         dcc.Dropdown(id='filter3', options=filt_list3, multi=True, clearable=True,
                                        value=list(df['ASVCO2_firmware'].unique())),
                          dcc.Checklist(id='filter4'),
                          dhtml.Button('Update Filter', id='update')]
@@ -531,7 +540,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
             It is a bug in the codxce
         '''
 
-        df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2',
+        df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'SN_ASVCO2', 'ASVCO2_firmware',
                                       'CO2DETECTOR_firmware', 'last_ASVCO2_validation'])
 
@@ -561,18 +570,30 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
             df = pd.concat(temp)
 
         else:
+
+            filt_list1 = []
+            filt_list3 = []
+            filt_list4 = []
+
+            for var in df['SN_ASVCO2'].unique():
+                filt_list1.append({'label': var, 'value': var})
+            for var in df['ASVCO2_firmware'].unique():
+                filt_list3.append({'label': var, 'value': var})
+            for var in df['last_ASVCO2_validation'].unique():
+                filt_list4.append({'label': var, 'value': var})
+
             filt_card = [dcc.DatePickerRange(id='date-picker'),
                          dhtml.Label('Serial #'),
-                         dcc.Checklist(id='filter1', options=list(df['SN_ASVCO2'].unique()),
+                         dcc.Dropdown(id='filter1', options=filt_list1, multi=True, clearable=True,
                                        value=list(df['SN_ASVCO2'].unique())),
                          dhtml.Label('LiCOR Firmware'),
-                         dcc.Checklist(id='filter2', options=list(df['CO2DETECTOR_firmware'].unique()),
+                         dcc.Checklist(id='filter2', options=df['CO2DETECTOR_firmware'].unique(),
                                        value=list(df['CO2DETECTOR_firmware'].unique())),
                          dhtml.Label('ASVCO2 firmware'),
-                         dcc.Checklist(id='filter3', options=list(df['ASVCO2_firmware'].unique()),
+                         dcc.Dropdown(id='filter3', options=filt_list3, multi=True, clearable=True,
                                        value=list(df['ASVCO2_firmware'].unique())),
                          dhtml.Label('Last Validation'),
-                         dcc.Checklist(id='filter4', options=list(df['last_ASVCO2_validation'].unique()),
+                         dcc.Dropdown(id='filter4', options=filt_list4, multi=True, clearable=True,
                                        value=list(df['last_ASVCO2_validation'].unique())),
                          dhtml.Button('Update Filter', id='update')]
 
@@ -583,7 +604,10 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
         load_plots.add_scatter(x=df['time'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='Residual',
                                hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='Dry Residual',
+        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_RESIDUAL_MEAN_ASVCO2'], name='Dry Residual',
+                               hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='Dry TCORR Residual',
                                hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
 
