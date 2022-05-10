@@ -733,31 +733,31 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
                                       'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_REF_LAB',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'INSTRUMENT_STATE'])
 
-        # filter block
-        changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-        if 'update.n_clicks' in changed_id:
+        # # filter block
+        # changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+        # if 'update.n_clicks' in changed_id:
+        #
+        #     filt_card = dash.no_update
+        #
+        #     # if we're filtering everything, plotting is unnecessary
+        #     if filt1 == [] :
+        #         load_plots = make_subplots(rows=1, cols=1,
+        #                                    shared_yaxes=False, shared_xaxes=True)
+        #
+        #         return load_plots, filt_card
+        #
+        #     temp = []
+        #
+        #     for var in filt2:
+        #         temp.append(df[df['INSTRUMENT_STATE'] == var])
+        #
+        #     df = pd.concat(temp)
+        #
+        #     for co2_set in filt1:
+        #         load_plots.add_trace(go.Histogram(x=df[co2_set]), row=1, col=1)
 
-            filt_card = dash.no_update
 
-            # if we're filtering everything, plotting is unnecessary
-            if filt1 == [] :
-                load_plots = make_subplots(rows=1, cols=1,
-                                           shared_yaxes=False, shared_xaxes=True)
-
-                return load_plots, filt_card
-
-            temp = []
-
-            for var in filt2:
-                temp.append(df[df['INSTRUMENT_STATE'] == var])
-
-            df = pd.concat(temp)
-
-            for co2_set in filt1:
-                load_plots.add_trace(go.Histogram(x=df[co2_set]), row=1, col=1)
-
-
-        return
+        return dcc.Graph(figure=load_plots), dash.no_update
 
 
     def switch_plot(case):
