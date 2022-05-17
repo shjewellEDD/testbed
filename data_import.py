@@ -3,6 +3,9 @@ ERDDAP reader archetype file.
 
 TODO:
     Need exception handler for bad urls
+    Do we need the Prawler specific functions, or should those be offloaded
+        Prawer specific fuctions should have date guards added
+    Maybe make ret_data invoke get_date if self.data is empty?
 
 '''
 
@@ -110,6 +113,19 @@ class Dataset:
                 self.t_end = self.data_end()
         
 
+    def date_guard(self, in_date):
+        '''
+        Our datasets love to send us data from the future. Let's stop that, okay?
+        :param in_date:
+        :return: datetime.datetime
+        '''
+
+        if in_date > datetime.datetime.today():
+
+            return datetime.datetime.today()
+
+        return in_date
+
     # def url_check(self, try_url):
     #
     #     page = (requests.get(try_url[:-3] + "das"))
@@ -170,7 +186,7 @@ class Dataset:
         indx = page.find('"', line)
         endx = page.find('"', indx+1)
 
-        return from_erddap_date(page[indx+1:endx-1])
+        return self.date_guard(from_erddap_date(page[indx+1:endx-1]))
 
 
     def get_data(self, **kwargs):
@@ -241,7 +257,7 @@ class Dataset:
         if self.time_flag:
 
             w_start = kwargs.get('t_start', self.t_start)
-            w_end = kwargs.get('t_end', self.t_end)
+            w_end = self.date_guard(kwargs.get('t_end', self.t_end))
 
             return self.data[(w_start <= self.data['time']) & (self.data['time'] <= w_end)]
 
@@ -274,6 +290,103 @@ class Dataset:
         return vars
 
 
-    def ret_vars(self):
+    def ret_raw_vars(self):
+        '''
+        Returns variables with none skipped
+        :return: list
+        '''
 
         return self.raw_vars
+
+    def ret_vars(self, **kwargs):
+        '''
+        Return
+        :param kwargs: keyword: skips, list of strs, variables to skip
+        :return:
+        '''
+
+        skips = ['time', 'latitude', 'longitude', 'timeseries_id']
+
+        external_skips = kwargs.get('skips', None)
+
+        if external_skips:
+
+            skips = skips + external_skips
+
+        vars = []
+
+        for var in list(self.raw_vars):
+
+            # skip unwanted variables
+            if var in skips:
+                continue
+
+            vars.append(var)
+
+        return vars
+
+    def trips_per_day(self, w_start, w_end):
+        '''
+        Prawler specific function, calculates round trips per day
+        :param w_start:
+        :param w_end:
+        :return:
+        '''
+
+        internal_set =self.data[(w_start <= self.data['datetime']) & (self.data['datetime'] <= w_end)]
+        #internal_set['datetime'] = internal_set.loc[:, 'time'].apply(from_erddap_date)
+        internal_set['days'] = internal_set.loc[:, 'datetime'].dt.date
+        new_df = pd.DataFrame((internal_set.groupby('days')['ntrips'].last()).diff())[1:]
+        new_df['days'] = new_df.index
+
+        return new_df
+
+    def errs_per_day(self, w_start, w_end):
+        '''
+        Pralwer specific function
+        Calculates errors per day
+        :param w_start:
+        :param w_end:
+        :return:
+        '''
+
+        internal_set = self.data[(w_start <= self.data['datetime']) & (self.data['datetime'] <= w_end)]
+        # internal_set['datetime'] = internal_set.loc[:, 'time'].apply(from_erddap_date)
+        internal_set['days'] = internal_set.loc[:, 'datetime'].dt.date
+        new_df = pd.DataFrame((internal_set.groupby('days')['nerrors'].last()).diff())[1:]
+        new_df['days'] = new_df.index
+
+        return new_df
+
+    def gen_fail_set(self):
+        '''
+        Prawler specific function
+        Returns fails
+        :return:
+        '''
+
+        fail_set = self.data[self.data['dir'] == 'F']
+        # fail_set['datetime'] = fail_set.loc[:, 'time'].apply(from_erddap_date)
+        fail_set['days'] = fail_set.loc[:, 'datetime'].dt.date
+        fail_set = pd.DataFrame((fail_set.groupby('days')['dir'].last()).diff())[1:]
+        fail_set['days'] = fail_set.index
+
+        return fail_set
+
+    def sci_profiles_per_day(self, w_start, w_end):
+        '''
+        Prawler specific function, returns the number of scientific profiles per day
+        :param w_start:
+        :param w_end:
+        :return:
+        '''
+
+        sci_set = self.data[self.data.loc[:, 'sb_depth'].diff() < -35]
+        sci_set['ntrips'] = sci_set['sb_depth'].diff()
+
+        # sci_set['datetime'] = sci_set.loc[:, 'time'].apply(from_erddap_date)
+        sci_set['days'] = sci_set.loc[:, 'datetime'].dt.date
+        sci_set = pd.DataFrame((sci_set.groupby('days')['ntrips'].size()))
+        sci_set['days'] = sci_set.index
+
+        return sci_set

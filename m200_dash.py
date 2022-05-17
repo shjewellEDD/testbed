@@ -27,10 +27,7 @@ import data_import
 import datetime
 
 prawlers = [{'label':   'M200 Eng', 'value': 'M200Eng'},
-            {'label':   'M200 Sci', 'value': 'M200Sci'},
-            {'label':   'M200 Wind', 'value': 'M200Wind'},
-            {'label':   'M200 Temp/Humid', 'value': 'M200ATRH'},
-            {'label':   'M200 Baro', 'value': 'M200Baro'}
+            {'label':   'M200 Sci', 'value': 'M200Sci'}
             ]
 
 '''
@@ -39,16 +36,11 @@ Start Dashboard
 '''
 
 dataset_dict = {
-            'M200Eng': data_import.Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv'),
-            'M200Sci': data_import.Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWC_M200.csv'),
-            'M200Wind': data_import.Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_WIND.csv'),
-            'M200Baro': data_import.Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_BARO.csv'),
-            'M200ATRH': data_import.Dataset('https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_ATRH.csv')
+            'M200Eng': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv',
+            'M200Sci': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWC_M200.csv'
             }
 
 
-#eng_set = Dataset(set_meta['Eng']['url'])
-#starting_set = 'M200Eng'
 
 graph_config = {'modeBarButtonsToRemove' : ['hoverCompareCartesian','select2d', 'lasso2d'],
                 'doubleClick':  'reset+autosize', 'toImageButtonOptions': { 'height': None, 'width': None, },
@@ -56,32 +48,34 @@ graph_config = {'modeBarButtonsToRemove' : ['hoverCompareCartesian','select2d', 
 
 colors = {'background': '#111111', 'text': '#7FDBFF'}
 
-external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
+app = dash.Dash(__name__,
+                meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
+#                 requests_pathname_prefix='/prawler/m200/',
+                external_stylesheets=[dbc.themes.SLATE])
+# server = app.server
 
-variables_card = dbc.Card(
-    [#dbc.CardHeader("Tools"),
-     dbc.CardBody(
-         dcc.Dropdown(
-             id="select_var",
-             #style={'backgroundColor': colors['background']},
-             #       'textColor': colors['text']},
-             clearable=False
-         ),
-    )],
-    color='dark'
-)
+external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
 
 set_card = dbc.Card([
         dbc.CardBody(
             dcc.Dropdown(
                 id="select_eng",
-                #style={'backgroundColor': colors['background']},
                 options=prawlers,
                 value=prawlers[0]['value'],
                 clearable=False
             )
         )
 ])
+
+variables_card = dbc.Card(
+    [
+     dbc.CardBody(
+         dcc.Dropdown(
+             id="select_var",
+             clearable=False
+         ),
+    )],
+)
 
 date_card = dbc.Card([
     dbc.CardBody(
@@ -95,37 +89,31 @@ date_card = dbc.Card([
 table_card = dbc.Card([
     dbc.CardBody(
         children=[dcc.Textarea(id='t_mean',
-                                value='',
-                                readOnly=True,
-                                style={'width': '100%', 'height': 40,
-                                       #'backgroundColor': colors['background']}
-                                       'textColor':       colors['text']},
-                                ),
-                    dash_table.DataTable(id='table',
-                                         style_table={'backgroundColor': colors['background'],
-                                                      'height'         :'300px',
-                                                      'overflowY'       :'auto'},
-                                                      #'overflow'      : 'scroll'},
-                                         style_cell={'backgroundColor': colors['background'],
-                                                     'textColor':       colors['text']}
-                    )
+                               value='',
+                               readOnly=True,
+                               style={'width': '100%', 'height': 40,
+                                      'textColor':       colors['text']},
+                               ),
+                  dash_table.DataTable(id='dtable',
+                                       style_table={'backgroundColor': colors['background'],
+                                                    'height'         :'300px',
+                                                    'overflowY'       :'auto'},
+                                       style_cell={'backgroundColor': colors['background'],
+                                                   'textColor':       colors['text']}
+                  )
         ])
 ])
 
 graph_card = dbc.Card(
-    [dbc.CardBody([dcc.Loading(dcc.Graph(id='graph'))])
-    ]
+    [dbc.CardBody([
+        dcc.Loading(
+            dcc.Graph(id='graph')
+        )
+    ])]
 )
 
-
-app = dash.Dash(__name__,
-                meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/prawler/m200/',
-                external_stylesheets=[dbc.themes.SLATE])
-server = app.server
-
 app.layout = dhtml.Div([
-   #dbc.Container([
+   dbc.Container([
             dbc.Row([dhtml.H1('Prawler M200')]),
             dbc.Row([
                 dbc.Col(graph_card, width=9),
@@ -135,7 +123,7 @@ app.layout = dhtml.Div([
                                   table_card],
                         width=3)
                     ])
-   #             ])
+               ])
 ])
 
 
@@ -156,22 +144,21 @@ Callbacks
 
 def change_prawler(dataset):
 
-    eng_set = dataset_dict[dataset]
+    eng_set = data_import.Dataset(dataset_dict[dataset])
 
-    min_date_allowed = eng_set.t_start.date(),
+    min_date_allowed = eng_set.t_start.date()
     max_date_allowed = eng_set.t_end.date()
-    start_date = (eng_set.t_end - datetime.timedelta(days=14)).date(),
+    start_date = (eng_set.t_end - datetime.timedelta(days=14)).date()
     end_date = eng_set.t_end.date()
-    first_var = eng_set.ret_vars()[0]['value']
+    first_var = eng_set.ret_vars()[0]
 
-
-    return dataset_dict[dataset].ret_vars(), str(min_date_allowed), str(max_date_allowed), str(start_date[0]), str(end_date), first_var
+    return eng_set.ret_vars(), min_date_allowed, max_date_allowed, start_date, end_date, first_var
 
 #engineering data selection
 @app.callback(
     [Output('graph', 'figure'),
-     Output('table', 'data'),
-     Output('table', 'columns'),
+     Output('dtable', 'data'),
+     Output('dtable', 'columns'),
      Output('t_mean', 'value')],
     [Input('select_eng', 'value'),
      Input('select_var', 'value'),
@@ -180,8 +167,8 @@ def change_prawler(dataset):
 
 def plot_evar(dataset, select_var, start_date, end_date):
 
-    eng_set = dataset_dict[dataset]
-    new_data = eng_set.ret_data(window_start=start_date, window_end=end_date)
+    eng_set = data_import.Dataset(dataset_dict[dataset])
+    new_data = eng_set.get_data(window_start=start_date, window_end=end_date, variables=[select_var])
 
     colorscale = px.colors.sequential.Viridis
 
@@ -232,7 +219,12 @@ def plot_evar(dataset, select_var, start_date, end_date):
     #elif select_var in list(new_data.columns):
 
     else:
-        efig = px.scatter(new_data, y=select_var, x='time')#, color="sepal_length", color_continuous_scale=colorscale)
+        # give depth a seperate colorscale
+        if dataset == 'M200Sci':
+            efig = px.scatter(new_data, y=select_var,
+                              x='time', color=select_var, color_continuous_scale=colorscale)
+        else:
+            efig = px.scatter(new_data, y=select_var, x='time')#, color="sepal_length", color_continuous_scale=colorscale)
 
         columns = [{"name": 'Date', "id": 'datetime'},
                    {'name': select_var, 'id': select_var}]
@@ -254,7 +246,7 @@ def plot_evar(dataset, select_var, start_date, end_date):
     efig.update_layout(
         plot_bgcolor=colors['background'],
         paper_bgcolor=colors['background'],
-        font_color=colors['text'],
+        font_color=colors['text']
     )
 
     return efig, table_data, columns, t_mean
