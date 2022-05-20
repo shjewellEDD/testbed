@@ -35,7 +35,7 @@ def from_erddap_date(edate):
     if pd.isna(edate):
         return edate
 
-    if len(edate) > 10:
+    elif len(edate) > 10:
 
         redate = datetime.datetime(year=int(edate[:4]),
                                    month=int(edate[5:7]),
@@ -195,7 +195,7 @@ class Dataset:
         #
         #https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv?time%2Clatitude&time%3E=2022-04-03T00%3A00%3A00Z&time%3C=2022-04-10T14%3A59%3A14Z
         #[url base] + '.csv?time%2C'+ [var1] + '%2C' + [var2] + '%2C' + .... + [time1] + '%3C' + [time2]
-        variables = kwargs.get('variables', None)
+        variables = kwargs.get('variables', self.raw_vars)
 
         self.t_start = kwargs.get('window_start', self.t_start)
         self.t_end = kwargs.get('window_end', self.t_end)
@@ -203,16 +203,11 @@ class Dataset:
         if 'window_start' in kwargs or 'window_end' in kwargs:
             self.window_flag = True
 
-        if variables == [] or variables is None:
-
-            self.data = pd.read_csv(self.url, skiprows=[1], low_memory=False)
-
-            return self.data
+        vars = set(variables)
 
         spec_url = f'{self.url}'
 
         # duplicate vars cause HTML causes errors, sets don't have duplicates
-        vars = set(variables)
 
         if self.time_flag:
             spec_url = f'{spec_url}?time'
@@ -220,6 +215,12 @@ class Dataset:
 
             for var in vars:
                 if var is None:
+                    continue
+
+                if var == 'time':
+                    continue
+
+                if var == 'NC_GLOBAL':
                     continue
 
                 # don't try to load non-existant variables, 'kay?
@@ -231,10 +232,16 @@ class Dataset:
             spec_url = f'{spec_url}&time%3E={erddap_url_date(self.t_start)}&time%3C={erddap_url_date(self.t_end)}'
 
         else:
-            spec_url = f'{spec_url}?{variables[0]}'
+            spec_url = f'{spec_url}?'
 
-            for var in variables[1:]:
+            for var in variables:
                 if var is None:
+                    continue
+
+                if var == 'time':
+                    continue
+
+                if var == 'NC_GLOBAL':
                     continue
 
                 spec_url = f'{spec_url}%2C{var}'
