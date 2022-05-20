@@ -4,10 +4,9 @@ Gas Validaiton Dashboard
 TODO:
     Check all titles and axes labels
     See if can color by subset
-    Get histogram names working
     Datatable (may need to generalize the graph card for that)
     Add "select all/unselect" all button for filters
-    Add "Refresh" button
+    Bug in both code and filters. See first dashboard, as it is correct.
 '''
 
 import pandas as pd
@@ -21,6 +20,7 @@ from plotly.subplots import make_subplots
 from dash import html as dhtml
 
 import data_import
+from matplotlib import pyplot as plt
 
 state_select_vars = ['INSTRUMENT_STATE', 'last_ASVCO2_validation', 'CO2LastZero', 'ASVCO2_firmware',
                      'CO2DETECTOR_serialnumber', 'ASVCO2_ATRH_serialnumber', 'ASVCO2_O2_serialnumber',
@@ -45,9 +45,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                requests_pathname_prefix='/co2/validation/',
+                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-#server = app.server
+server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -80,8 +80,8 @@ tools_card = dbc.Card([
                 id="select_display",
                 options=custom_sets,
                 value=custom_sets[0]['value'],
-                clearable=False,
-                persistence=True
+                clearable=False#,
+                #persistence=True
                 )
     ])
 ])
@@ -199,7 +199,12 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
                 temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
                 df2 = pd.concat(temp)
 
-            df = df1.merge(df2)
+            # plt.scatter(y=df['CO2_RESIDUAL_MEAN_ASVCO2'], x=df['CO2_REF_LAB'])
+            # plt.title('Filter')
+            # plt.legend()
+            # plt.show()
+
+            df = pd.merge(df1, df2)
 
         # if we are just changing pages, then we need to refresh the filter card
         else:
@@ -214,7 +219,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
                          dcc.Checklist(id='filter1', options=[0, 1], value=[0, 1]),
                          dhtml.Label('Reference Range'),
                          dcc.Dropdown(id='filter2', options=filt_list2, value=df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()[0],
-                                      multi=True, clearable=True, persistence=True),
+                                      multi=True, clearable=True),#, persistence=True),
                          dcc.Checklist(id='filter3'),
                          dcc.Checklist(id='filter4'),
                          dhtml.Button('Update Filter', id='update')]
@@ -222,6 +227,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
 
         epoff = df[df['INSTRUMENT_STATE'] == 'EPOFF']
         apoff = df[df['INSTRUMENT_STATE'] == 'APOFF']
+
+        # plt.scatter(y=df['CO2_RESIDUAL_MEAN_ASVCO2'], x=df['CO2_REF_LAB'])
+        # plt.title('Plot')
+        # plt.legend()
+        # plt.show()
 
         load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='EPOFF', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 5}, row=1, col=1)
@@ -298,7 +308,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
                          dhtml.Label('Reference Range'),
                          dcc.Dropdown(id='filter2', options=filt_list2,
                                       value=df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()[0],
-                                      multi=True, clearable=True, persistence=True),
+                                      multi=True, clearable=True),# persistence=True),
                          dcc.Checklist(id='filter3'),
                          dcc.Checklist(id='filter4'),
                          dhtml.Button('Update Filter', id='update')]
@@ -402,7 +412,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
                                        value=list(df['ASVCO2_firmware'].unique())),
                          dhtml.Label('Last Validation'),
                          dcc.Dropdown(id='filter4', options=filt_list4, value=list(df['last_ASVCO2_validation'].unique()),
-                                      multi=True, persistence=True, clearable=True),
+                                      multi=True, clearable=True),#persistence=True,
                          dhtml.Button('Update Filter', id='update')]
 
         load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='Residual', hoverinfo='x+y+name',

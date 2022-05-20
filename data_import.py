@@ -195,6 +195,9 @@ class Dataset:
         #
         #https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv?time%2Clatitude&time%3E=2022-04-03T00%3A00%3A00Z&time%3C=2022-04-10T14%3A59%3A14Z
         #[url base] + '.csv?time%2C'+ [var1] + '%2C' + [var2] + '%2C' + .... + [time1] + '%3C' + [time2]
+
+        self.data = pd.DataFrame()
+
         variables = kwargs.get('variables', self.raw_vars)
 
         self.t_start = kwargs.get('window_start', self.t_start)
@@ -282,7 +285,7 @@ class Dataset:
         :returns list of dict of variales, ERDDAP compatible
         '''
 
-        skips = ['time'] + kwargs.get('skips', [])
+        skips = ['time', 'NC_GLOBAL'] + kwargs.get('skips', [])
 
         vars = []
 
