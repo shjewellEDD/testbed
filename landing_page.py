@@ -18,6 +18,7 @@ Visualization considerations
 '''
 
 prawlers = [{'label': 'M200', 'value': 'M200'},
+            {'label': 'M200 SWOT TEST', 'value': 'SWOT Test'},
             {'label': 'TELONAS2', 'value': 'TELONAS2'},
             {'label': 'ASVCO2 Real Time', 'value': 'co2rt'},
             {'label': 'ASVCO2 Validation', 'value': 'co2valid'}
@@ -36,7 +37,10 @@ gps_coords = {'M200': {'type': 'prawler', 'lat': 58,   'lon': -165},
               }
 
 gps_coords = {'M200': {'type': 'prawler', 'link': '[M200](/prawler/test/)', 'lat': 58,   'lon': -165},
-              'M200 SWOT Test': {'type': 'prawler', 'link': '[M200 SWOT TEST](/swot/test/)', 'lat': 58,   'lon': -165}
+              'M200 SWOT Test': {'type': 'prawler', 'link': '[M200 SWOT TEST](/swot/test/)', 'lat': 58,   'lon': -165},
+              'TELONAS2': {'type': 'prawler', 'link': '[TELONAS2](/prawler/telonas2/)', 'lat': 42, 'lon': -123},
+              'ASVCO2 Real Time': {'type': 'co2', 'link': '[M200 SWOT TEST](/co2/real_teim/)', 'lat': 37.64, 'lon': -122.77},
+              'ASVCO2 Validation': {'type': 'co2', 'link': '[M200 SWOT TEST](/co2/validation/)', 'lat': 58,   'lon': -165}
               }
 
 df = pd.DataFrame(gps_coords).transpose()

@@ -44,9 +44,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+#                 requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+# server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -691,7 +691,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
             title=' ',
             #hovermode='x unified',
             xaxis_showticklabels=True,
-            yaxis_fixedrange=True,
+            yaxis_fixedrange=False,
             plot_bgcolor=colors[im_mode]['bckgrd'],
             paper_bgcolor=colors[im_mode]['bckgrd'],
             font_color=colors[im_mode]['text'],
