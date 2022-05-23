@@ -171,8 +171,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
         :return:
         '''
         # get dataset
-        df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
-                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG'])
+        df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
+                                      'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2',
+                                      'OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2'])
 
         load_plots = make_subplots(rows=1, cols=1,
                                    subplot_titles=['EPOFF & APOFF Residual vs. Reference'],
@@ -197,13 +198,16 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
             for var in filt2:
                 temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
                 df2 = pd.concat(temp)
+            for var in filt3:
+                temp.append(df[df['SN_ASVCO2'] == var])
+                df3 = pd.concat(temp)
 
             # plt.scatter(y=df['CO2_RESIDUAL_MEAN_ASVCO2'], x=df['CO2_REF_LAB'])
             # plt.title('Filter')
             # plt.legend()
             # plt.show()
 
-            df = pd.merge(df1, df2)
+            df = pd.merge(df1, df2, df3)
 
         # if we are just changing pages, then we need to refresh the filter card
         else:
@@ -212,6 +216,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
             for var in list(df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()):
                 filt_list2.append({'label': var, 'value': var})
 
+            filt_list3 = []
+            for var in list(df['SN_ASVCO2'].unique()):
+                filt_list3.append({'label': var, 'value': var})
+
+
             # default filter card
             filt_card = [dcc.DatePickerRange(id='date-picker'),
                          dhtml.Label('Out of Range'),
@@ -219,7 +228,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
                          dhtml.Label('Reference Range'),
                          dcc.Dropdown(id='filter2', options=filt_list2, value=df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()[0],
                                       multi=True, clearable=True),#, persistence=True),
-                         dcc.Checklist(id='filter3'),
+                         dhtml.Label('Serial #'),
+                         dcc.Dropdown(id='filter3', options=filt_list3, clearable=True, multi=True,
+                                      value=list(df['SN_ASVCO2'].unique())),
                          dcc.Checklist(id='filter4'),
                          dhtml.Button('Update Filter', id='update')]
 
@@ -688,7 +699,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, t
             xaxis_gridcolor=colors[im_mode]['text'],
             yaxis_zerolinecolor=colors[im_mode]['text'],
             xaxis_zerolinecolor=colors[im_mode]['text'],
-            autosize=True,
+            #autosize=True,
             #xaxis=dict(showgrid=False),
             showlegend=True, modebar={'orientation': 'h'},
             margin=dict(l=25, r=25, b=25, t=25, pad=4)
