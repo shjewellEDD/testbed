@@ -42,9 +42,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+#                 requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+# server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -78,8 +78,8 @@ tools_card = dbc.Card([
                 id="select_display",
                 options=custom_sets,
                 value=custom_sets[0]['value'],
-                clearable=False#,
-                #persistence=True
+                clearable=False,
+                persistence=True
                 )
     ])
 ])
@@ -149,10 +149,11 @@ def change_set(dataset_url):
      State('filter4', 'value'),
      State('filter5', 'value'),
      State('date-picker', 'start_date'),
-     State('date-picker', 'end_date')
+     State('date-picker', 'end_date'),
+     State('display-card', 'children')
      ])
 
-def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend):
+def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend, figs):
 
     def off_ref(dset, update):
         '''
@@ -688,17 +689,99 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         :return:
         '''
 
-        load_plots = make_subplots(rows=1, cols=1,
-                                   subplot_titles=['Residual'],
-                                   shared_yaxes=False)
 
-        df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
-                                      'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_REF_LAB',
-                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'INSTRUMENT_STATE'])
+        df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'SN_ASVCO2',
+                                 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'ASVCO2_firmware',
+                                 'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE'])
+
+        limiters = {'mean_min':     None,
+                    'mean_max':     None,
+                    'pf_mean':      None,
+                    'pf_stddev':    None,
+                    'pf_max':       None
+                    }
+
+        default = [{'sn': 'Min', 'mean': 0, 'stddev': '', 'max': ''},  # defaults
+                   {'sn': 'Max', 'mean': 2, 'stddev': '', 'max': ''},
+                   {'sn': '', 'mean': 'Mean Residual', 'stddev': 'STDDEV', 'max': 'Max Residual'},
+                   {'sn': 'Pass/Fail', 'mean': 1, 'stddev': .5, 'max': 2},  # defaults
+                   {'sn': 'apoff fail', 'mean': '', 'stddev': '', 'max': ''},
+                   {'sn': 'epoff fail', 'mean': '', 'stddev': '', 'max': ''}
+                   ]
+
+        # filter block
+        changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+        if 'update.n_clicks' in changed_id:
+
+            filt_card = dash.no_update
+
+            limiters = {'mean_min':     figs[0]['props']['children'][0]['props']['data'][0]['mean'],
+                        'mean_max':     figs[0]['props']['children'][0]['props']['data'][1]['mean'],
+                        'pf_mean':      figs[0]['props']['children'][0]['props']['data'][3]['mean'],
+                        'pf_stddev':    figs[0]['props']['children'][0]['props']['data'][3]['stddev'],
+                        'pf_max':       figs[0]['props']['children'][0]['props']['data'][3]['max']
+                        }
 
 
-        return dcc.Graph(figure=load_plots), dash.no_update
+        else:
 
+            filt_list1 = [{'label': 'STDDEV', 'value': 'CO2_RESIDUAL_STDDEV_ASVCO2'},
+                          {'label': 'Dry Residual',    'value': 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'},
+                          {'label': 'TCORR Residual',  'value': 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'}
+                          ]
+
+            filt_list2 = []
+            filt_list3 = []
+
+            for state in df['INSTRUMENT_STATE'].unique():
+                filt_list2.append({'label': state, 'value': state})
+
+            for rng in df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique():
+                filt_list3.append({'label': rng, 'value': rng})
+
+            filt_card = [dcc.DatePickerRange(id='date-picker'),
+                         dhtml.Label('Type'),
+                         dcc.Dropdown(id='filter1', options=filt_list1, value='CO2_RESIDUAL_STDDEV_ASVCO2',
+                                      clearable=False, multi=False),
+                         dhtml.Label('State'),
+                         dcc.Dropdown(id='filter2', options=filt_list2, value='APOFF', clearable=False, multi=False),
+                         dhtml.Label('Residual Lab Reference Range'),
+                         dcc.Dropdown(id='filter3', options=filt_list3, clearable=True, value=None),
+                         dcc.Checklist(id='filter4'),
+                         dcc.Checklist(id='filter5'),
+                         dhtml.Button('Update Filter', id='update')]
+
+        table_data = dict()
+
+        # change this to reflect table inputs
+        # for co2range in df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique():
+
+        #     dry = df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == co2range].dropna(subset='CO2_DRY_RESIDUAL_MEAN_ASVCO2')
+
+        temp = {}
+
+        for sn in df['SN_ASVCO2'].unique():
+
+            if sn in df['SN_ASVCO2'].unique():
+                temp[sn] = {'sn': sn,
+                            'mean': df[df['SN_ASVCO2'] == sn]['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].mean(),
+                            'stddev': df[df['SN_ASVCO2'] == sn]['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].std(),
+                            'max': df[df['SN_ASVCO2'] == sn]['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].max()}
+
+            else:
+                temp[sn] = {'sn': sn,
+                            'mean': pd.NA,
+                            'stddev': pd.NA,
+                            'max': pd.NA}
+
+            table_data = pd.DataFrame.from_dict(temp, orient='index')
+
+
+        tab1 = dash_table.DataTable(default, id='tab1'),
+        tab2 = dash_table.DataTable(table_data.to_dict('records'), [{"name": i, "id": i} for i in table_data.columns],
+                                    id='tab2')
+
+        return [dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
 
     def summary(dset, update):
         '''
