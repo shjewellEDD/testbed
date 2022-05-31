@@ -102,7 +102,8 @@ app.layout = dhtml.Div([
                                   dcc.Loading(filter_card),
                                   dcc.RadioItems(id='image_mode',
                                                  options=['Dark', 'Light'],
-                                                 value='Dark')
+                                                 value='Dark',
+                                                 persistence=True)
                                   ],
                         width=3),
                 dbc.Col(children=dcc.Loading(graph_card), width=9)
@@ -777,9 +778,17 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             table_data = pd.DataFrame.from_dict(temp, orient='index')
 
 
-        tab1 = dash_table.DataTable(default, id='tab1'),
+        tab1 = dash_table.DataTable(default, id='tab1', editable=True,
+                                    style_table={'backgroundColor': colors[im_mode]['bckgrd']},
+                                    style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
+                                                'textColor': colors[im_mode]['text']}
+                                    ),
         tab2 = dash_table.DataTable(table_data.to_dict('records'), [{"name": i, "id": i} for i in table_data.columns],
-                                    id='tab2')
+                                    id='tab2',
+                                    style_table={'backgroundColor': colors[im_mode]['bckgrd']},
+                                    style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
+                                                'textColor': colors[im_mode]['text']}
+                                    )
 
         return [dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
 
