@@ -84,11 +84,28 @@ tools_card = dbc.Card([
     ])
 ])
 
-graph_card = dbc.Card(
-    dbc.CardBody(
-        id='display-card',
-        children=dcc.Loading(dcc.Graph(id='graphs'))
-    )
+graph_card = dbc.Collapse(
+    dbc.Card(
+        dbc.CardBody(
+            id='display-card',
+            children=dcc.Graph(id='graphs'),
+            style={'display': 'block'}
+        )
+    ),
+    id='graph-collapse',
+    is_open=True
+)
+
+table_card = dbc.Collapse(
+    dbc.Card(
+        dbc.CardBody(id='table-card',
+                     children=dash_table.DataTable(id='tab1'),
+                     style={'display': 'hide'}
+                     )
+
+        ),
+    id='table-collapse',
+    is_open=False
 )
 
 
@@ -106,7 +123,10 @@ app.layout = dhtml.Div([
                                                  persistence=True)
                                   ],
                         width=3),
-                dbc.Col(children=dcc.Loading(graph_card), width=9)
+                dbc.Col(dcc.Loading(children=[graph_card,
+                                             table_card]
+                                    ),
+                        width=9)
             ])
         ])
     )
@@ -136,9 +156,24 @@ def change_set(dataset_url):
 
     return min_date_allowed, max_date_allowed, start_date, end_date
 
+@app.callback(
+    [Output('graph-collapse', 'is_open'),
+     Output('table-collapse', 'is_open')],
+     Input('select_display', 'value'))
+
+def set_view(set_val):
+
+    if set_val == "summary table":
+
+        return False, True
+
+    return True, False
+
+
 # plot updating selection
 @app.callback(
     [Output('display-card', 'children'),
+     Output('table-card', 'children'),
      Output('filter_card', 'children')],
     [Input('select_set', 'value'),
      Input('select_display', 'value'),
@@ -151,10 +186,13 @@ def change_set(dataset_url):
      State('filter5', 'value'),
      State('date-picker', 'start_date'),
      State('date-picker', 'end_date'),
-     State('display-card', 'children')
+     #State('display-card', 'children')
+     State('tab1', 'derived_virtual_data')
      ])
 
-def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend, figs):
+def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend, disp_card):
+
+    empty_tables = dcc.Loading([dash_table.DataTable(id='tab1'), dash_table.DataTable(id='tab2')])
 
     def off_ref(dset, update):
         '''
@@ -257,7 +295,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                     xaxis_title='Reference Gas Concentration (ppm)'
                                     )
 
-        return dcc.Graph(figure=load_plots), filt_card
+        return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
 
     def cal_ref(dset, update):
@@ -361,7 +399,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                     xaxis_title='Reference Gas (ppm)',
                                     )
 
-        return dcc.Graph(figure=load_plots), filt_card
+        return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
     def multi_ref(dset, update):
         '''
@@ -468,7 +506,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                     )
 
 
-        return dcc.Graph(figure=load_plots), filt_card
+        return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
 
     def resid_and_stdev(dset, update):
@@ -583,7 +621,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             yaxis_title='Residual w/ Standard Deviation (ppm)'
         )
 
-        return dcc.Graph(figure=load_plots), filt_card
+        return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
     def stddev_hist(dset, update):
         '''
@@ -680,7 +718,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             xaxis=dict(range=[-50, 50])
         )
 
-        return dcc.Graph(figure=load_plots), filt_card
+        return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
 
     def summary_table(dset, update):
@@ -715,13 +753,13 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         if 'update.n_clicks' in changed_id:
 
             filt_card = dash.no_update
-
-            limiters = {'mean_min':     figs[0]['props']['children'][0]['props']['data'][0]['mean'],
-                        'mean_max':     figs[0]['props']['children'][0]['props']['data'][1]['mean'],
-                        'pf_mean':      figs[0]['props']['children'][0]['props']['data'][3]['mean'],
-                        'pf_stddev':    figs[0]['props']['children'][0]['props']['data'][3]['stddev'],
-                        'pf_max':       figs[0]['props']['children'][0]['props']['data'][3]['max']
-                        }
+            #
+            # limiters = {'mean_min':     figs[0]['props']['children'][0]['props']['data'][0]['mean'],
+            #             'mean_max':     figs[0]['props']['children'][0]['props']['data'][1]['mean'],
+            #             'pf_mean':      figs[0]['props']['children'][0]['props']['data'][3]['mean'],
+            #             'pf_stddev':    figs[0]['props']['children'][0]['props']['data'][3]['stddev'],
+            #             'pf_max':       figs[0]['props']['children'][0]['props']['data'][3]['max']
+            #             }
 
 
         else:
@@ -790,7 +828,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                                 'textColor': colors[im_mode]['text']}
                                     )
 
-        return [dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
+        return dcc.Graph(id='graphs'),[dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
 
     def summary(dset, update):
         '''
@@ -827,7 +865,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                 'resid stddev':  resid_and_stdev,
                 'stddev hist':   stddev_hist,
                 'summary table': summary_table,
-                'summary dasta': summary
+                'summary data': summary
                 }.get(case)
 
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
@@ -857,7 +895,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             margin=dict(l=25, r=25, b=25, t=25, pad=4)
         )
 
-    return plotters[0], plotters[1]
+    return plotters[0], plotters[1], plotters[2]
 
 
 if __name__ == '__main__':
