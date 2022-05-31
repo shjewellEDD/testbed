@@ -38,7 +38,10 @@ custom_sets = [{'label': 'EPOFF & APOFF vs Ref Gas',    'value': 'resids'},
                {'label': 'Summary Data',                'value': 'summary data'}]
 
 colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
-          'Light': {'bckgrd': '#FAF9F6', 'text': '#111111'}}
+          'Light': {'bckgrd': '#FAF9F6', 'text': '#111111'},
+          'Green':  '#00FF00',
+          'Blue':   '#0000FF',
+          'Red':    '#FF0000'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
@@ -186,11 +189,10 @@ def set_view(set_val):
      State('filter5', 'value'),
      State('date-picker', 'start_date'),
      State('date-picker', 'end_date'),
-     #State('display-card', 'children')
-     State('tab1', 'derived_virtual_data')
+     State('table-card', 'children')
      ])
 
-def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend, disp_card):
+def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend, table_card):
 
     empty_tables = dcc.Loading([dash_table.DataTable(id='tab1'), dash_table.DataTable(id='tab2')])
 
@@ -753,14 +755,15 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         if 'update.n_clicks' in changed_id:
 
             filt_card = dash.no_update
-            #
-            # limiters = {'mean_min':     figs[0]['props']['children'][0]['props']['data'][0]['mean'],
-            #             'mean_max':     figs[0]['props']['children'][0]['props']['data'][1]['mean'],
-            #             'pf_mean':      figs[0]['props']['children'][0]['props']['data'][3]['mean'],
-            #             'pf_stddev':    figs[0]['props']['children'][0]['props']['data'][3]['stddev'],
-            #             'pf_max':       figs[0]['props']['children'][0]['props']['data'][3]['max']
-            #             }
 
+            limiters = {'mean_min':     table_card[0]['props']['children'][0]['props']['data'][0]['mean'],
+                        'mean_max':     table_card[0]['props']['children'][0]['props']['data'][1]['mean'],
+                        'pf_mean':      table_card[0]['props']['children'][0]['props']['data'][3]['mean'],
+                        'pf_stddev':    table_card[0]['props']['children'][0]['props']['data'][3]['stddev'],
+                        'pf_max':       table_card[0]['props']['children'][0]['props']['data'][3]['max']
+                        }
+
+            print(limiters)
 
         else:
 
@@ -815,12 +818,19 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             table_data = pd.DataFrame.from_dict(temp, orient='index')
 
-
-        tab1 = dash_table.DataTable(default, id='tab1', editable=True,
+        tab1 = dash_table.DataTable(default, id='tab1', columns=[{'name': 'sn',     'id':  'sn',     'editable': False},
+                                                                 {'name': 'mean',   'id':  'mean',   'editable': True},
+                                                                 {'name': 'stddev', 'id':  'stddev', 'editable': True},
+                                                                 {'name': 'max',    'id': 'max',   'editable': True}],
                                     style_table={'backgroundColor': colors[im_mode]['bckgrd']},
                                     style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
-                                                'textColor': colors[im_mode]['text']}
-                                    ),
+                                                'textColor': colors[im_mode]['text']},
+                                    # style_cell_conditional=[{'if': {
+                                    #                             'filter': 'Min',
+                                    #                             'column_id': 'mean'},
+                                    #                         'background-color': colors['Blue']}]
+                                    )
+
         tab2 = dash_table.DataTable(table_data.to_dict('records'), [{"name": i, "id": i} for i in table_data.columns],
                                     id='tab2',
                                     style_table={'backgroundColor': colors[im_mode]['bckgrd']},
@@ -828,7 +838,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                                 'textColor': colors[im_mode]['text']}
                                     )
 
-        return dcc.Graph(id='graphs'),[dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
+        return dcc.Graph(id='graphs'), [dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
 
     def summary(dset, update):
         '''
