@@ -756,19 +756,17 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             filt_card = dash.no_update
 
-            limiters = {'mean_min':     table_card[0]['props']['children'][0]['props']['data'][0]['mean'],
-                        'mean_max':     table_card[0]['props']['children'][0]['props']['data'][1]['mean'],
-                        'pf_mean':      table_card[0]['props']['children'][0]['props']['data'][3]['mean'],
-                        'pf_stddev':    table_card[0]['props']['children'][0]['props']['data'][3]['stddev'],
-                        'pf_max':       table_card[0]['props']['children'][0]['props']['data'][3]['max']
+            limiters = {'range_min':     table_card[0]['props']['children']['props']['data'][0]['mean'],
+                        'range_max':     table_card[0]['props']['children']['props']['data'][1]['mean'],
+                        'pf_mean':      table_card[0]['props']['children']['props']['data'][3]['mean'],
+                        'pf_stddev':    table_card[0]['props']['children']['props']['data'][3]['stddev'],
+                        'pf_max':       table_card[0]['props']['children']['props']['data'][3]['max']
                         }
-
-            print(limiters)
 
         else:
 
-            filt_list1 = [{'label': 'STDDEV', 'value': 'CO2_RESIDUAL_STDDEV_ASVCO2'},
-                          {'label': 'Dry Residual',    'value': 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'},
+            filt_list1 = [{'label': 'Dry Residual',    'value': 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'},
+                          {'label': 'STDDEV', 'value': 'CO2_RESIDUAL_STDDEV_ASVCO2'},
                           {'label': 'TCORR Residual',  'value': 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'}
                           ]
 
@@ -802,13 +800,20 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         temp = {}
 
+        if 'filt1' not in locals():
+            filt1 = 'CO2_RESIDUAL_STDDEV_ASVCO2'
+
+        # if limiters['range_min']:
+        #
+        #     df = df[df['']]
+
         for sn in df['SN_ASVCO2'].unique():
 
             if sn in df['SN_ASVCO2'].unique():
                 temp[sn] = {'sn': sn,
-                            'mean': df[df['SN_ASVCO2'] == sn]['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].mean(),
-                            'stddev': df[df['SN_ASVCO2'] == sn]['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].std(),
-                            'max': df[df['SN_ASVCO2'] == sn]['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].max()}
+                            'mean': df[df['SN_ASVCO2'] == sn][filt1].mean(),
+                            'stddev': df[df['SN_ASVCO2'] == sn][filt1].std(),
+                            'max': df[df['SN_ASVCO2'] == sn][filt1].max()}
 
             else:
                 temp[sn] = {'sn': sn,
