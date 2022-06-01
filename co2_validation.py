@@ -45,9 +45,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                 requests_pathname_prefix='/co2/validation/',
+                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-# server = app.server
+server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -127,7 +127,7 @@ app.layout = dhtml.Div([
                                   ],
                         width=3),
                 dbc.Col(dcc.Loading(children=[graph_card,
-                                             table_card]
+                                              table_card]
                                     ),
                         width=9)
             ])
@@ -825,10 +825,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                     style_table={'backgroundColor': colors[im_mode]['bckgrd']},
                                     style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
                                                 'textColor': colors[im_mode]['text']},
-                                    # style_cell_conditional=[{'if': {
-                                    #                             'filter': 'Min',
-                                    #                             'column_id': 'mean'},
-                                    #                         'background-color': colors['Blue']}]
+                                    # style_cell_conditional=[{'if': {'column_id':    'mean'},
+                                    #                             #'filter_query': '{sn} contains "Min"'},
+                                    #                         {'backgroundColor': colors['Blue']}}]
                                     )
 
         tab2 = dash_table.DataTable(table_data.to_dict('records'), [{"name": i, "id": i} for i in table_data.columns],
