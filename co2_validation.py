@@ -2,8 +2,7 @@
 Gas Validaiton Dashboard
 
 TODO:
-    Check all titles and axes labels
-    See if can color by subset
+    When the LiCOR is not calibrated it will return -50, we should filter these out by standard
     Datatable (may need to generalize the graph card for that)
     Add "select all/unselect" all button for filters
     Bug in both code and filters. See first dashboard, as it is correct.
@@ -45,9 +44,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+#                 requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+# server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -189,10 +188,10 @@ def set_view(set_val):
      State('filter5', 'value'),
      State('date-picker', 'start_date'),
      State('date-picker', 'end_date'),
-     State('table-card', 'children')
+     State('tab1', 'data')
      ])
 
-def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend, table_card):
+def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend, table_input):
 
     empty_tables = dcc.Loading([dash_table.DataTable(id='tab1'), dash_table.DataTable(id='tab2')])
 
@@ -611,7 +610,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         # plotting block
 
-        print("Plotting", len(df))
         load_plots.add_scatter(x=df['time'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
                                name='Residual', hoverinfo='x+y+name', mode='markers', marker={'size': 4}, row=1, col=1)
         load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_RESIDUAL_MEAN_ASVCO2'], error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
@@ -653,11 +651,17 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [] or filt2 == []:
+            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == []:
                 load_plots = make_subplots(rows=1, cols=1,
                                            shared_yaxes=False, shared_xaxes=True)
 
                 return load_plots, filt_card
+
+            temp = []
+
+            for var in filt1:
+                temp.append(df[df['ASVCO2_firmware'] == var])
+            df = pd.merge(df, pd.concat(temp), how='right')
 
             temp = []
 
@@ -735,19 +739,21 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                  'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'ASVCO2_firmware',
                                  'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE'])
 
-        limiters = {'mean_min':     None,
-                    'mean_max':     None,
-                    'pf_mean':      None,
-                    'pf_stddev':    None,
-                    'pf_max':       None
+        df = df[(df['INSTRUMENT_STATE'] == 'APOFF') | (df['INSTRUMENT_STATE'] == 'EPOFF')]
+
+        limiters = {'range_min':     0,
+                    'range_max':     2,
+                    'pf_mean':       1,
+                    'pf_stddev':     .5,
+                    'pf_max':        2
                     }
 
         default = [{'sn': 'Min', 'mean': 0, 'stddev': '', 'max': ''},  # defaults
                    {'sn': 'Max', 'mean': 2, 'stddev': '', 'max': ''},
                    {'sn': '', 'mean': 'Mean Residual', 'stddev': 'STDDEV', 'max': 'Max Residual'},
                    {'sn': 'Pass/Fail', 'mean': 1, 'stddev': .5, 'max': 2},  # defaults
-                   {'sn': 'apoff fail', 'mean': '', 'stddev': '', 'max': ''},
-                   {'sn': 'epoff fail', 'mean': '', 'stddev': '', 'max': ''}
+                   {'sn': 'APOFF Fail %', 'mean': '', 'stddev': '', 'max': ''},
+                   {'sn': 'EPOFF Fail %', 'mean': '', 'stddev': '', 'max': ''}
                    ]
 
         # filter block
@@ -756,25 +762,58 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             filt_card = dash.no_update
 
-            limiters = {'range_min':     table_card[0]['props']['children']['props']['data'][0]['mean'],
-                        'range_max':     table_card[0]['props']['children']['props']['data'][1]['mean'],
-                        'pf_mean':      table_card[0]['props']['children']['props']['data'][3]['mean'],
-                        'pf_stddev':    table_card[0]['props']['children']['props']['data'][3]['stddev'],
-                        'pf_max':       table_card[0]['props']['children']['props']['data'][3]['max']
-                        }
+            # supposedly dash_tables will have built-in typing at some point in the future... this might make them even
+            # more of a mess on the backend, but will help eliminate this mess of a guard clause
+
+            if table_input[0]['mean'] != '':
+                try:
+                    limiters['range_min'] = float(table_input[0]['mean'])
+                except ValueError:
+                    default[0]['mean'] = ''
+
+            if table_input[1]['mean'] != '':
+                try:
+                    limiters['range_max'] = float(table_input[1]['mean'])
+                except ValueError:
+                    default[1]['mean'] = ''
+
+            if table_input[2]['mean'] != '':
+                try:
+                    limiters['pf_mean'] = float(table_input[2]['mean'])
+                except ValueError:
+                    default[2]['pf_mean'] = ''
+
+            if table_input[2]['mean'] != '':
+                try:
+                    limiters['pf_stddev'] = float(table_input[2]['stddev'])
+                except ValueError:
+                    default[2]['stddev'] = ''
+
+            if table_input[2]['max'] != '':
+                try:
+                    limiters['pf_max'] = float(table_input[2]['max'])
+                except ValueError:
+                    default[2]['max'] = ''
+
+            # filter for Instrument state
+            temp = []
+
+            for var in ['APOFF', 'EPOFF']:
+                temp.append(df[df['INSTRUMENT_STATE'] == var])
+            df = pd.merge(df, pd.concat(temp), how='right')
 
         else:
 
             filt_list1 = [{'label': 'Dry Residual',    'value': 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'},
-                          {'label': 'STDDEV', 'value': 'CO2_RESIDUAL_STDDEV_ASVCO2'},
-                          {'label': 'TCORR Residual',  'value': 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'}
+                          {'label': 'TCORR Residual',  'value': 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'},
+                          {'label': 'STDDEV', 'value': 'CO2_RESIDUAL_STDDEV_ASVCO2'}
                           ]
 
-            filt_list2 = []
+            #filt_list2 = []
             filt_list3 = []
 
-            for state in df['INSTRUMENT_STATE'].unique():
-                filt_list2.append({'label': state, 'value': state})
+            # for state in df['INSTRUMENT_STATE'].unique():
+            #     filt_list2.append({'label': state, 'value': state})
 
             for rng in df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique():
                 filt_list3.append({'label': rng, 'value': rng})
@@ -784,7 +823,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                          dcc.Dropdown(id='filter1', options=filt_list1, value='CO2_RESIDUAL_STDDEV_ASVCO2',
                                       clearable=False, multi=False),
                          dhtml.Label('State'),
-                         dcc.Dropdown(id='filter2', options=filt_list2, value='APOFF', clearable=False, multi=False),
+                         #dcc.Dropdown(id='filter2', options=filt_list2, value='APOFF', clearable=False, multi=False),
+                         dcc.Checklist(id='filter2', options=['APOFF', 'EPOFF'], value=['APOFF', 'EPOFF']),
                          dhtml.Label('Residual Lab Reference Range'),
                          dcc.Dropdown(id='filter3', options=filt_list3, clearable=True, value=None),
                          dcc.Checklist(id='filter4'),
@@ -792,57 +832,145 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                          dhtml.Button('Update Filter', id='update')]
 
         table_data = dict()
-
-        # change this to reflect table inputs
-        # for co2range in df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique():
-
-        #     dry = df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == co2range].dropna(subset='CO2_DRY_RESIDUAL_MEAN_ASVCO2')
-
-        temp = {}
+        temp = {'Both': dict(),
+                'APOFF': dict(),
+                'EPOFF': dict()}
 
         if 'filt1' not in locals():
             filt1 = 'CO2_RESIDUAL_STDDEV_ASVCO2'
 
-        # if limiters['range_min']:
-        #
-        #     df = df[df['']]
+        if 'filt2' not in locals():
+            filt2 = 'Both'
+        elif filt2 == ['APOFF', 'EPOFF']:
+            filt2 = 'Both'
+
+        if limiters['range_min']:
+            df = df[df['CO2_REF_LAB'] > limiters['range_min']]
+
+        if limiters['range_max']:
+            df = df[df['CO2_REF_LAB'] < limiters['range_max']]
 
         for sn in df['SN_ASVCO2'].unique():
 
             if sn in df['SN_ASVCO2'].unique():
-                temp[sn] = {'sn': sn,
+                temp['Both'][sn] = {'sn': sn,
                             'mean': df[df['SN_ASVCO2'] == sn][filt1].mean(),
                             'stddev': df[df['SN_ASVCO2'] == sn][filt1].std(),
                             'max': df[df['SN_ASVCO2'] == sn][filt1].max()}
 
             else:
-                temp[sn] = {'sn': sn,
+                temp['Both'][sn] = {'sn': sn,
                             'mean': pd.NA,
                             'stddev': pd.NA,
                             'max': pd.NA}
 
-            table_data = pd.DataFrame.from_dict(temp, orient='index')
+            for state in ['APOFF', 'EPOFF']:
 
-        tab1 = dash_table.DataTable(default, id='tab1', columns=[{'name': 'sn',     'id':  'sn',     'editable': False},
+                if sn in df['SN_ASVCO2'].unique():
+                    temp[state][sn] = {'sn': sn,
+                                        'mean': df[(df['SN_ASVCO2'] == sn) &
+                                                   (df['INSTRUMENT_STATE'] == state)][filt1].mean(),
+                                        'stddev': df[(df['SN_ASVCO2'] == sn) &
+                                                     (df['INSTRUMENT_STATE'] == state)][filt1].std(),
+                                        'max': df[(df['SN_ASVCO2'] == sn) &
+                                                  (df['INSTRUMENT_STATE'] == state)][filt1].max()}
+
+                else:
+                    temp[state][sn] = {'sn': sn,
+                                        'mean': pd.NA,
+                                        'stddev': pd.NA,
+                                        'max': pd.NA}
+
+        table_data = {'Both':   pd.DataFrame.from_dict(temp['Both'], orient='index'),
+                      'APOFF':  pd.DataFrame.from_dict(temp['APOFF'], orient='index'),
+                      'EPOFF':  pd.DataFrame.from_dict(temp['EPOFF'], orient='index')}
+
+        # Mean pass/fail percentage
+        # both = table_data['Both'].dropna(subset=filt1)
+        # apoff = table_data['APOFF'].dropna(subset=filt1)
+        # epoff = table_data['EPOFF'].drnopna(subset=filt1)
+
+
+        if table_data[filt2].dropna(subset='mean').empty:
+            default[4]['mean'], default[5]['mean'] = pd.NA, pd.NA
+
+        elif limiters['pf_mean']:
+
+            temp = table_data['APOFF'].dropna(subset='mean')
+
+            #perc = 100 * len(table_data["APOFF"][abs(table_data["APOFF"]['mean']) > limiters["pf_mean"]]) / len(table_data["APOFF"])
+            perc = 100 * len(temp[abs(temp['mean']) > limiters["pf_mean"]]) / len(temp)
+
+            default[4]['mean'] = f'{perc}%'
+
+            temp = table_data['EPOFF'].dropna(subset='mean')
+
+            #perc = 100 * len(abs(table_data["EPOFF"][table_data["EPOFF"]['mean'] > limiters["pf_mean"]])) / len(table_data["EPOFF"])
+            perc = 100 * len(temp[abs(temp['mean']) > limiters["pf_mean"]]) / len(temp)
+
+            default[5]['mean'] = f'{perc}%'
+
+        # STDDEV pass/fail percentage
+        if table_data[filt2].dropna(subset='stddev').empty:
+            default[4]['stddev'], default[5]['stddev'] = pd.NA, pd.NA
+
+        elif limiters['pf_stddev']:
+
+            temp = table_data['APOFF'].dropna(subset='stddev')
+
+            #perc = 100 * len(abs(table_data["APOFF"][table_data["APOFF"]['stddev'] > limiters["pf_stddev"]])) / len(table_data["APOFF"])
+            perc = 100 * len(temp[abs(temp['stddev']) > limiters["pf_stddev"]]) / len(temp)
+
+            default[4]['stddev'] = f'{perc}%'
+
+            temp = table_data['EPOFF'].dropna(subset='stddev')
+
+            #perc = 100 * len(abs(table_data["EPOFF"][table_data["EPOFF"]['stddev'] > limiters["pf_stddev"]])) / len(table_data["EPOFF"])
+            perc = 100 * len(temp[abs(temp['stddev']) > limiters["pf_stddev"]]) / len(temp)
+
+            default[5]['stddev'] = f'{perc}%'
+
+        # Max pass/fail percentage
+        if table_data[filt2].dropna(subset='max').empty:
+            default[4]['max'], default[5]['max'] = pd.NA, pd.NA
+
+        elif limiters['pf_max']:
+
+            temp = table_data['APOFF'].dropna(subset='max')
+
+            #perc = 100 * len(abs(table_data["APOFF"][table_data["APOFF"]['max'] > limiters["max"]])) / len(table_data["APOFF"])
+            perc = 100 * len(temp[abs(temp['max']) > limiters["pf_max"]]) / len(temp)
+
+            default[4]['max'] = f'{perc}%'
+
+            temp = table_data['EPOFF'].dropna(subset='max')
+
+            #perc = 100 * len(abs(table_data["EPOFF"][table_data["EPOFF"]['max'] > limiters["max"]])) / len(table_data["EPOFF"])
+            perc = 100 * len(temp[abs(temp['max']) > limiters["pf_max"]]) / len(temp)
+
+            default[5]['max'] = f'{perc}%'
+
+        tab1 = dash_table.DataTable(default[1:], id='tab1', columns=[{'name': 'sn',     'id':  'sn',     'editable': False},
                                                                  {'name': 'mean',   'id':  'mean',   'editable': True},
                                                                  {'name': 'stddev', 'id':  'stddev', 'editable': True},
                                                                  {'name': 'max',    'id': 'max',   'editable': True}],
                                     style_table={'backgroundColor': colors[im_mode]['bckgrd']},
                                     style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
-                                                'textColor': colors[im_mode]['text']},
+                                                'textColor': colors[im_mode]['text']}
                                     # style_cell_conditional=[{'if': {'column_id':    'mean'},
                                     #                             #'filter_query': '{sn} contains "Min"'},
                                     #                         {'backgroundColor': colors['Blue']}}]
                                     )
 
-        tab2 = dash_table.DataTable(table_data.to_dict('records'), [{"name": i, "id": i} for i in table_data.columns],
+        tab2 = dash_table.DataTable(table_data[filt2].to_dict('records'),
+                                    columns=[{"name": i, "id": i} for i in table_data[filt2].columns],
                                     id='tab2',
                                     style_table={'backgroundColor': colors[im_mode]['bckgrd']},
                                     style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
                                                 'textColor': colors[im_mode]['text']}
                                     )
 
-        return dcc.Graph(id='graphs'), [dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
+        return dcc.Graph(id='graphs'), [tab1, tab2], filt_card
 
     def summary(dset, update):
         '''
