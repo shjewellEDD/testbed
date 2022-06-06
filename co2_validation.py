@@ -756,6 +756,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                    {'sn': 'EPOFF Fail %', 'mean': '', 'stddev': '', 'max': ''}
                    ]
 
+
         # filter block
         changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
         if 'update.n_clicks' in changed_id:
@@ -768,32 +769,42 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             if table_input[0]['mean'] != '':
                 try:
                     limiters['range_min'] = float(table_input[0]['mean'])
-                except ValueError:
+                    default[0]['mean'] = float(table_input[0]['mean'])
+                except (ValueError, TypeError):
                     default[0]['mean'] = ''
+                    limiters['range_min'] = None
 
             if table_input[1]['mean'] != '':
                 try:
                     limiters['range_max'] = float(table_input[1]['mean'])
-                except ValueError:
+                    default[1]['mean'] = float(table_input[1]['mean'])
+                except (ValueError, TypeError):
+                    limiters['range_max'] = None
                     default[1]['mean'] = ''
 
-            if table_input[2]['mean'] != '':
+            if table_input[3]['mean'] != '':
                 try:
-                    limiters['pf_mean'] = float(table_input[2]['mean'])
-                except ValueError:
-                    default[2]['pf_mean'] = ''
+                    limiters['pf_mean'] = float(table_input[3]['mean'])
+                    default[3]['mean'] = float(table_input[3]['mean'])
+                except (ValueError, TypeError):
+                    limiters['pf_mean'] = None
+                    default[3]['mean'] = ''
 
-            if table_input[2]['mean'] != '':
+            if table_input[3]['stddev'] != '':
                 try:
-                    limiters['pf_stddev'] = float(table_input[2]['stddev'])
-                except ValueError:
-                    default[2]['stddev'] = ''
+                    limiters['pf_stddev'] = float(table_input[3]['stddev'])
+                    default[3]['stddev'] = float(table_input[3]['stddev'])
+                except (ValueError, TypeError):
+                    limiters['pf_stddev'] = None
+                    default[3]['stddev'] = ''
 
-            if table_input[2]['max'] != '':
+            if table_input[3]['max'] != '':
                 try:
-                    limiters['pf_max'] = float(table_input[2]['max'])
-                except ValueError:
-                    default[2]['max'] = ''
+                    limiters['pf_max'] = float(table_input[3]['max'])
+                    default[3]['max'] = float(table_input[3]['max'])
+                except (ValueError, TypeError):
+                    limiters['pf_max'] = None
+                    default[3]['max'] = ''
 
             # filter for Instrument state
             temp = []
@@ -820,7 +831,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             filt_card = [dcc.DatePickerRange(id='date-picker'),
                          dhtml.Label('Type'),
-                         dcc.Dropdown(id='filter1', options=filt_list1, value='CO2_RESIDUAL_STDDEV_ASVCO2',
+                         dcc.Dropdown(id='filter1', options=filt_list1, value='CO2_DRY_RESIDUAL_MEAN_ASVCO2',
                                       clearable=False, multi=False),
                          dhtml.Label('State'),
                          #dcc.Dropdown(id='filter2', options=filt_list2, value='APOFF', clearable=False, multi=False),
@@ -836,12 +847,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                 'APOFF': dict(),
                 'EPOFF': dict()}
 
-        if 'filt1' not in locals():
-            filt1 = 'CO2_RESIDUAL_STDDEV_ASVCO2'
+        # default values
+        if filt1 == []:
+            filt1 = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'
 
-        if 'filt2' not in locals():
-            filt2 = 'Both'
-        elif filt2 == ['APOFF', 'EPOFF']:
+        if (filt2 == []) or (filt2 == ['APOFF', 'EPOFF']):
             filt2 = 'Both'
 
         if limiters['range_min']:
@@ -860,9 +870,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             else:
                 temp['Both'][sn] = {'sn': sn,
-                            'mean': pd.NA,
-                            'stddev': pd.NA,
-                            'max': pd.NA}
+                            'mean': '',
+                            'stddev': '',
+                            'max': ''}
 
             for state in ['APOFF', 'EPOFF']:
 
@@ -877,9 +887,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 else:
                     temp[state][sn] = {'sn': sn,
-                                        'mean': pd.NA,
-                                        'stddev': pd.NA,
-                                        'max': pd.NA}
+                                        'mean': '',
+                                        'stddev': '',
+                                        'max': ''}
 
         table_data = {'Both':   pd.DataFrame.from_dict(temp['Both'], orient='index'),
                       'APOFF':  pd.DataFrame.from_dict(temp['APOFF'], orient='index'),
@@ -892,7 +902,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
 
         if table_data[filt2].dropna(subset='mean').empty:
-            default[4]['mean'], default[5]['mean'] = pd.NA, pd.NA
+            default[4]['mean'], default[5]['mean'] = '', ''
 
         elif limiters['pf_mean']:
 
@@ -912,7 +922,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         # STDDEV pass/fail percentage
         if table_data[filt2].dropna(subset='stddev').empty:
-            default[4]['stddev'], default[5]['stddev'] = pd.NA, pd.NA
+            default[4]['stddev'], default[5]['stddev'] = '', ''
 
         elif limiters['pf_stddev']:
 
@@ -932,7 +942,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         # Max pass/fail percentage
         if table_data[filt2].dropna(subset='max').empty:
-            default[4]['max'], default[5]['max'] = pd.NA, pd.NA
+            default[4]['max'], default[5]['max'] = '', ''
 
         elif limiters['pf_max']:
 
@@ -950,16 +960,15 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             default[5]['max'] = f'{perc}%'
 
-        tab1 = dash_table.DataTable(default[1:], id='tab1', columns=[{'name': 'sn',     'id':  'sn',     'editable': False},
-                                                                 {'name': 'mean',   'id':  'mean',   'editable': True},
-                                                                 {'name': 'stddev', 'id':  'stddev', 'editable': True},
-                                                                 {'name': 'max',    'id': 'max',   'editable': True}],
+        def_df = pd.DataFrame.from_dict(default)
+        def_df.fillna('')
+
+        tab1 = dash_table.DataTable(def_df.to_dict('records'),
+                                    columns=[{"name": i, "id": i, 'editable': True} for i in def_df.columns],
+                                    id='tab1',
                                     style_table={'backgroundColor': colors[im_mode]['bckgrd']},
                                     style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
                                                 'textColor': colors[im_mode]['text']}
-                                    # style_cell_conditional=[{'if': {'column_id':    'mean'},
-                                    #                             #'filter_query': '{sn} contains "Min"'},
-                                    #                         {'backgroundColor': colors['Blue']}}]
                                     )
 
         tab2 = dash_table.DataTable(table_data[filt2].to_dict('records'),
@@ -970,7 +979,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                                 'textColor': colors[im_mode]['text']}
                                     )
 
-        return dcc.Graph(id='graphs'), [tab1, tab2], filt_card
+        return dcc.Graph(id='graphs'), [dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
 
     def summary(dset, update):
         '''
