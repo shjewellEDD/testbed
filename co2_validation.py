@@ -737,8 +737,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         :return:
         '''
-        nonlocal filt1, filt2, filt3
-
+        nonlocal filt1, filt2, filt3, table_input
+        temp = []
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'SN_ASVCO2',
                                  'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'ASVCO2_firmware',
@@ -768,64 +768,67 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             filt_card = dash.no_update
 
+            if filt2 == ['APOFF', 'EPOFF']:
+                filt2 = 'Both'
+
             # supposedly dash_tables will have built-in typing at some point in the future... this might make them even
             # more of a mess on the backend, but will help eliminate this mess of a guard clause
 
-            if table_input[0]['mean'] != '':
+            if (table_input[0]['mean'] is not None) or (table_input[0]['mean'] != ''):
                 try:
                     limiters['range_min'] = float(table_input[0]['mean'])
                     default[0]['mean'] = float(table_input[0]['mean'])
                 except (ValueError, TypeError):
                     default[0]['mean'] = ''
-                    limiters['range_min'] = None
+                    limiters['range_min'] = ''
 
-            if table_input[1]['mean'] != '':
+            if (table_input[1]['mean'] is not None) or (table_input[1]['mean'] != ''):
                 try:
                     limiters['range_max'] = float(table_input[1]['mean'])
                     default[1]['mean'] = float(table_input[1]['mean'])
                 except (ValueError, TypeError):
-                    limiters['range_max'] = None
+                    limiters['range_max'] = ''
                     default[1]['mean'] = ''
 
-            if table_input[3]['mean'] != '':
+            if (table_input[3]['mean'] is not None) or (table_input[3]['mean'] != ''):
                 try:
                     limiters['pf_mean'] = float(table_input[3]['mean'])
                     default[3]['mean'] = float(table_input[3]['mean'])
                 except (ValueError, TypeError):
-                    limiters['pf_mean'] = None
+                    limiters['pf_mean'] = ''
                     default[3]['mean'] = ''
 
-            if table_input[3]['stddev'] != '':
+            if (table_input[3]['stddev'] is not None) or (table_input[3]['stddev'] != ''):
                 try:
                     limiters['pf_stddev'] = float(table_input[3]['stddev'])
                     default[3]['stddev'] = float(table_input[3]['stddev'])
                 except (ValueError, TypeError):
-                    limiters['pf_stddev'] = None
+                    limiters['pf_stddev'] = ''
                     default[3]['stddev'] = ''
 
-            if table_input[3]['max'] != '':
+            if (table_input[3]['max'] is not None) or (table_input[3]['max'] != ''):
                 try:
                     limiters['pf_max'] = float(table_input[3]['max'])
                     default[3]['max'] = float(table_input[3]['max'])
                 except (ValueError, TypeError):
-                    limiters['pf_max'] = None
+                    limiters['pf_max'] = ''
                     default[3]['max'] = ''
 
             # filter for Instrument state
             temp = []
 
-            for var in ['APOFF', 'EPOFF']:
-                temp.append(df[df['INSTRUMENT_STATE'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            # for var in ['APOFF', 'EPOFF']:
+            #     temp.append(df[df['INSTRUMENT_STATE'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
 
         else:
 
             # default values
             if filt1 == [None]:
-                filt1 = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'
+                filt1 = ['CO2_DRY_RESIDUAL_MEAN_ASVCO2']
 
             if (filt2 == [None]) or (filt2 == ['APOFF', 'EPOFF']):
-                filt2 = 'Both'
+                filt2 = ['Both']
 
             filt_list1 = [{'label': 'Dry Residual',    'value': 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'},
                           {'label': 'TCORR Residual',  'value': 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'},
@@ -859,11 +862,16 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                 'APOFF': dict(),
                 'EPOFF': dict()}
 
-        if limiters['range_min']:
-            df = df[df['CO2_REF_LAB'] > limiters['range_min']]
-
-        if limiters['range_max']:
-            df = df[df['CO2_REF_LAB'] < limiters['range_max']]
+        '''
+        Limiters are a work in progress
+        '''
+        # if limiters['range_min'] != '':
+        #     # df = df[df[filt1] > limiters['range_min']]
+        #     df = df[df['CO2_REF_LAB'] > limiters['range_min']]
+        #
+        # if limiters['range_max'] != '':
+        #     # df = df[df[filt1] < limiters['range_max']]
+        #     df = df[df['CO2_REF_LAB'] < limiters['range_max']]
 
         for sn in df['SN_ASVCO2'].unique():
 
@@ -899,63 +907,64 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         table_data = {'Both':   pd.DataFrame.from_dict(temp['Both'], orient='index'),
                       'APOFF':  pd.DataFrame.from_dict(temp['APOFF'], orient='index'),
                       'EPOFF':  pd.DataFrame.from_dict(temp['EPOFF'], orient='index')}
+        temp=[]
 
-        if table_data[filt2].dropna(subset='mean').empty:
+        if table_data[filt2]['mean'].dropna().empty:
             default[4]['mean'], default[5]['mean'] = '', ''
 
         elif limiters['pf_mean']:
 
-            temp = table_data['APOFF'].dropna(subset='mean')
+            temp = table_data['APOFF']['mean'].dropna()
 
-            #perc = 100 * len(table_data["APOFF"][abs(table_data["APOFF"]['mean']) > limiters["pf_mean"]]) / len(table_data["APOFF"])
-            perc = 100 * len(temp[abs(temp['mean']) > limiters["pf_mean"]]) / len(temp)
+            #perc = 100 * len(table_data["APOFF"][abs(table_data["APOFF"]['mean']) > limiters["pf_mean"]]) / len(table_data["APOFF"])te
+            perc = 100 * len(temp[abs(temp) > limiters["pf_mean"]]) / len(temp)
 
             default[4]['mean'] = f'{perc}%'
 
-            temp = table_data['EPOFF'].dropna(subset='mean')
+            temp = table_data['EPOFF']['mean'].dropna()
 
             #perc = 100 * len(abs(table_data["EPOFF"][table_data["EPOFF"]['mean'] > limiters["pf_mean"]])) / len(table_data["EPOFF"])
-            perc = 100 * len(temp[abs(temp['mean']) > limiters["pf_mean"]]) / len(temp)
+            perc = 100 * len(temp[abs(temp) > limiters["pf_mean"]]) / len(temp)
 
             default[5]['mean'] = f'{perc}%'
 
         # STDDEV pass/fail percentage
-        if table_data[filt2].dropna(subset='stddev').empty:
+        if table_data[filt2]['stddev'].dropna().empty:
             default[4]['stddev'], default[5]['stddev'] = '', ''
 
         elif limiters['pf_stddev']:
 
-            temp = table_data['APOFF'].dropna(subset='stddev')
+            temp = table_data['APOFF']['stddev'].dropna()
 
             #perc = 100 * len(abs(table_data["APOFF"][table_data["APOFF"]['stddev'] > limiters["pf_stddev"]])) / len(table_data["APOFF"])
-            perc = 100 * len(temp[abs(temp['stddev']) > limiters["pf_stddev"]]) / len(temp)
+            perc = 100 * len(temp[abs(temp) > limiters["pf_stddev"]]) / len(temp)
 
             default[4]['stddev'] = f'{perc}%'
 
-            temp = table_data['EPOFF'].dropna(subset='stddev')
+            temp = table_data['EPOFF']['stddev'].dropna()
 
             #perc = 100 * len(abs(table_data["EPOFF"][table_data["EPOFF"]['stddev'] > limiters["pf_stddev"]])) / len(table_data["EPOFF"])
-            perc = 100 * len(temp[abs(temp['stddev']) > limiters["pf_stddev"]]) / len(temp)
+            perc = 100 * len(temp[abs(temp) > limiters["pf_stddev"]]) / len(temp)
 
             default[5]['stddev'] = f'{perc}%'
 
         # Max pass/fail percentage
-        if table_data[filt2].dropna(subset='max').empty:
+        if table_data[filt2]['max'].dropna().empty:
             default[4]['max'], default[5]['max'] = '', ''
 
         elif limiters['pf_max']:
 
-            temp = table_data['APOFF'].dropna(subset='max')
+            temp = table_data['APOFF']['max'].dropna()
 
             #perc = 100 * len(abs(table_data["APOFF"][table_data["APOFF"]['max'] > limiters["max"]])) / len(table_data["APOFF"])
-            perc = 100 * len(temp[abs(temp['max']) > limiters["pf_max"]]) / len(temp)
+            perc = 100 * len(temp[abs(temp) > limiters["pf_max"]]) / len(temp)
 
             default[4]['max'] = f'{perc}%'
 
-            temp = table_data['EPOFF'].dropna(subset='max')
+            temp = table_data['EPOFF']['max'].dropna()
 
             #perc = 100 * len(abs(table_data["EPOFF"][table_data["EPOFF"]['max'] > limiters["max"]])) / len(table_data["EPOFF"])
-            perc = 100 * len(temp[abs(temp['max']) > limiters["pf_max"]]) / len(temp)
+            perc = 100 * len(temp[abs(temp) > limiters["pf_max"]]) / len(temp)
 
             default[5]['max'] = f'{perc}%'
 
