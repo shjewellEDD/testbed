@@ -211,6 +211,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         Hoverdata should give data summary
         :return:
         '''
+        nonlocal filt1, filt2, filt3, filt4, filt5
+
         # get dataset
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
                                       'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2',
@@ -227,7 +229,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [] or filt2 == [] or filt3 == []:
+            if filt1 == [None] or filt2 == [None] or filt3 == [None]:
 
                 return dcc.Graph(figure=load_plots), filt_card
 
@@ -312,6 +314,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             gas:
         :return:
         '''
+        nonlocal filt1, filt2, filt3, filt4, filt5
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
@@ -328,7 +331,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [] or filt2 == [] or filt3 == []:
+            if filt1 == [None] or filt2 == [None] or filt3 == [None]:
 
                 return dcc.Graph(figure=load_plots), filt_card
 
@@ -412,7 +415,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         TODO:
 
         '''
-
+        nonlocal filt1, filt2, filt3, filt4, filt5
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
                                       'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2',
@@ -430,7 +433,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == []:
+            if filt1 == [None] or filt2 == [None] or filt3 == [None] or filt4 == [None]:
                 load_plots = make_subplots(rows=1, cols=1,
                                            shared_yaxes=False, shared_xaxes=True)
 
@@ -524,6 +527,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         NOTES:
             At test, the Last Validation filter doesn't appear to work.
         '''
+        nonlocal filt1, filt2, filt3, filt4, filt5
 
         df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_RESIDUAL_STDDEV_ASVCO2',
@@ -540,7 +544,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == [] or filt5:
+            if filt1 == [None] or filt2 == [None] or filt3 == [None] or filt4 == [None] or filt5 == [None]:
                 load_plots = make_subplots(rows=1, cols=1,
                                            shared_yaxes=False, shared_xaxes=True)
 
@@ -633,6 +637,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         :return:
         '''
+        nonlocal filt1, filt2, filt3, filt4, filt5
 
         resid_sets = ['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2']
 
@@ -651,7 +656,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == []:
+            if filt1 == [None] or filt2 == [None] or filt3 == [None] or filt4 == [None]:
                 load_plots = make_subplots(rows=1, cols=1,
                                            shared_yaxes=False, shared_xaxes=True)
 
@@ -726,13 +731,13 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
-
     def summary_table(dset, update):
         '''
         Returns
 
         :return:
         '''
+        nonlocal filt1, filt2, filt3
 
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'SN_ASVCO2',
@@ -815,6 +820,13 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         else:
 
+            # default values
+            if filt1 == [None]:
+                filt1 = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'
+
+            if (filt2 == [None]) or (filt2 == ['APOFF', 'EPOFF']):
+                filt2 = 'Both'
+
             filt_list1 = [{'label': 'Dry Residual',    'value': 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'},
                           {'label': 'TCORR Residual',  'value': 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'},
                           {'label': 'STDDEV', 'value': 'CO2_RESIDUAL_STDDEV_ASVCO2'}
@@ -846,13 +858,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         temp = {'Both': dict(),
                 'APOFF': dict(),
                 'EPOFF': dict()}
-
-        # default values
-        if filt1 == []:
-            filt1 = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'
-
-        if (filt2 == []) or (filt2 == ['APOFF', 'EPOFF']):
-            filt2 = 'Both'
 
         if limiters['range_min']:
             df = df[df['CO2_REF_LAB'] > limiters['range_min']]
@@ -894,12 +899,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         table_data = {'Both':   pd.DataFrame.from_dict(temp['Both'], orient='index'),
                       'APOFF':  pd.DataFrame.from_dict(temp['APOFF'], orient='index'),
                       'EPOFF':  pd.DataFrame.from_dict(temp['EPOFF'], orient='index')}
-
-        # Mean pass/fail percentage
-        # both = table_data['Both'].dropna(subset=filt1)
-        # apoff = table_data['APOFF'].dropna(subset=filt1)
-        # epoff = table_data['EPOFF'].drnopna(subset=filt1)
-
 
         if table_data[filt2].dropna(subset='mean').empty:
             default[4]['mean'], default[5]['mean'] = '', ''
@@ -999,6 +998,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         return dcc.Graph(figure=load_plots), dash.no_update
 
+
     # enforce filter return as list
     if not isinstance(filt1, list):
         filt1 = [filt1]
@@ -1016,7 +1016,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                 'resid stddev':  resid_and_stdev,
                 'stddev hist':   stddev_hist,
                 'summary table': summary_table,
-                'summary data': summary
+                'summary data':  summary
                 }.get(case)
 
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
