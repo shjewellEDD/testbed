@@ -2,10 +2,10 @@
 Gas Validaiton Dashboard
 
 TODO:
+    The general callback enforces all filters to singletons instead of lists.
+        Is this encessary?
     When the LiCOR is not calibrated it will return -50, we should filter these out by standard
     Datatable (may need to generalize the graph card for that)
-    Add "select all/unselect" all button for filters
-    Bug in both code and filters. See first dashboard, as it is correct.
 '''
 
 import pandas as pd
@@ -44,9 +44,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                 requests_pathname_prefix='/co2/validation/',
+                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-# server = app.server
+server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -761,6 +761,18 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                    {'sn': 'EPOFF Fail %', 'mean': '', 'stddev': '', 'max': ''}
                    ]
 
+        # default values
+        if filt1 == [None]:
+            filt1 = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'
+        else:
+            filt1 = filt1[0]
+
+        if (filt2 == [None]) or (set(filt2) == set(['APOFF', 'EPOFF'])):
+            filt2 = 'Both'
+        else:
+            filt2 = filt2[0]
+
+        filt3 = filt3[0]
 
         # filter block
         changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
@@ -768,8 +780,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             filt_card = dash.no_update
 
-            if filt2 == ['APOFF', 'EPOFF']:
-                filt2 = 'Both'
+            if filt3 != None:
+
+                df = df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == filt3]
 
             # supposedly dash_tables will have built-in typing at some point in the future... this might make them even
             # more of a mess on the backend, but will help eliminate this mess of a guard clause
@@ -823,13 +836,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         else:
 
-            # default values
-            if filt1 == [None]:
-                filt1 = ['CO2_DRY_RESIDUAL_MEAN_ASVCO2']
-
-            if (filt2 == [None]) or (filt2 == ['APOFF', 'EPOFF']):
-                filt2 = ['Both']
-
             filt_list1 = [{'label': 'Dry Residual',    'value': 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'},
                           {'label': 'TCORR Residual',  'value': 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'},
                           {'label': 'STDDEV', 'value': 'CO2_RESIDUAL_STDDEV_ASVCO2'}
@@ -875,11 +881,12 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         for sn in df['SN_ASVCO2'].unique():
 
+            # this seems like a silly way to check for existance. Maybe change
             if sn in df['SN_ASVCO2'].unique():
                 temp['Both'][sn] = {'sn': sn,
-                            'mean': df[df['SN_ASVCO2'] == sn][filt1].mean(),
-                            'stddev': df[df['SN_ASVCO2'] == sn][filt1].std(),
-                            'max': df[df['SN_ASVCO2'] == sn][filt1].max()}
+                            'mean': float(df[df['SN_ASVCO2'] == sn][filt1].mean()),
+                            'stddev': float(df[df['SN_ASVCO2'] == sn][filt1].std()),
+                            'max': float(df[df['SN_ASVCO2'] == sn][filt1].max())}
 
             else:
                 temp['Both'][sn] = {'sn': sn,
@@ -891,12 +898,12 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 if sn in df['SN_ASVCO2'].unique():
                     temp[state][sn] = {'sn': sn,
-                                        'mean': df[(df['SN_ASVCO2'] == sn) &
-                                                   (df['INSTRUMENT_STATE'] == state)][filt1].mean(),
-                                        'stddev': df[(df['SN_ASVCO2'] == sn) &
-                                                     (df['INSTRUMENT_STATE'] == state)][filt1].std(),
-                                        'max': df[(df['SN_ASVCO2'] == sn) &
-                                                  (df['INSTRUMENT_STATE'] == state)][filt1].max()}
+                                        'mean': float(df[(df['SN_ASVCO2'] == sn) &
+                                                   (df['INSTRUMENT_STATE'] == state)][filt1].mean()),
+                                        'stddev': float(df[(df['SN_ASVCO2'] == sn) &
+                                                     (df['INSTRUMENT_STATE'] == state)][filt1].std()),
+                                        'max': float(df[(df['SN_ASVCO2'] == sn) &
+                                                  (df['INSTRUMENT_STATE'] == state)][filt1].max())}
 
                 else:
                     temp[state][sn] = {'sn': sn,
@@ -1006,7 +1013,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
 
         return dcc.Graph(figure=load_plots), dash.no_update
-
 
     # enforce filter return as list
     if not isinstance(filt1, list):
