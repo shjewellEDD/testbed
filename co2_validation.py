@@ -196,7 +196,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
     empty_tables = dcc.Loading([dash_table.DataTable(id='tab1'), dash_table.DataTable(id='tab2')])
 
-    def off_ref(dset, update):
+    def off_ref(dset):
         '''
         "EPOFF & APOFF vs Ref Gas"
         TODO:
@@ -302,7 +302,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
 
-    def cal_ref(dset, update):
+    def cal_ref(dset):
         '''
         "ZPCAL & SPPCAL vs Ref Gas"
         TODO:
@@ -406,7 +406,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         return dcc.Graph(figure=load_plots), empty_tables, empty_tables, filt_card
 
-    def multi_ref(dset, update):
+    def multi_ref(dset):
         '''
         "CO2 AVG & STDDEV"
         Select serial, LICOR firmware, ASVCO2 firmware, date range
@@ -514,7 +514,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
 
-    def resid_and_stdev(dset, update):
+    def resid_and_stdev(dset):
         '''
         "Resid vs Time"
         Select serial, LICOR firmware, ASVCO2 firmware, date range
@@ -627,7 +627,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
-    def stddev_hist(dset, update):
+    def stddev_hist(dset):
         '''
         "Residual Histogram"
         Select random variable
@@ -731,14 +731,13 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
-    def summary_table(dset, update):
+    def summary_table(dset):
         '''
         Returns
 
         :return:
         '''
         nonlocal filt1, filt2, filt3, table_input
-        temp = []
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'SN_ASVCO2',
                                  'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'ASVCO2_firmware',
@@ -758,12 +757,12 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                    ]
 
         # default values
-        if filt1 == []:
+        if (filt1 == []) or (filt1 == [None]):
             filt1 = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'
         else:
             filt1 = filt1[0]
 
-        if (filt2 == []) or (set(filt2) == set(['APOFF', 'EPOFF'])):
+        if (filt2 == []) or (filt2 == [None]) or (set(filt2) == set(['APOFF', 'EPOFF'])):
             filt2 = 'Both'
         else:
             filt2 = filt2[0]
@@ -776,6 +775,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             filt_card = dash.no_update
 
+            # double check this
             if filt3 != None:
                 df = df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == filt3]
 
@@ -784,24 +784,24 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             if (table_input[3]['mean'] is not None) or (table_input[3]['mean'] != ''):
                 try:
-                    limiters['pf_mean'] = float(table_input[3]['mean'])
-                    default[3]['mean'] = float(table_input[3]['mean'])
+                    limiters['pf_mean'] = float(table_input[1]['mean'])
+                    default[3]['mean'] = float(table_input[1]['mean'])
                 except (ValueError, TypeError):
                     limiters['pf_mean'] = ''
                     default[3]['mean'] = ''
 
             if (table_input[3]['stddev'] is not None) or (table_input[3]['stddev'] != ''):
                 try:
-                    limiters['pf_stddev'] = float(table_input[3]['stddev'])
-                    default[3]['stddev'] = float(table_input[3]['stddev'])
+                    limiters['pf_stddev'] = float(table_input[1]['stddev'])
+                    default[3]['stddev'] = float(table_input[1]['stddev'])
                 except (ValueError, TypeError):
                     limiters['pf_stddev'] = ''
                     default[3]['stddev'] = ''
 
-            if (table_input[3]['max'] is not None) or (table_input[3]['max'] != ''):
+            if (table_input[3]['max'] is not None) or (table_input[1]['max'] != ''):
                 try:
-                    limiters['pf_max'] = float(table_input[3]['max'])
-                    default[3]['max'] = float(table_input[3]['max'])
+                    limiters['pf_max'] = float(table_input[1]['max'])
+                    default[3]['max'] = float(table_input[1]['max'])
                 except (ValueError, TypeError):
                     limiters['pf_max'] = ''
                     default[3]['max'] = ''
@@ -847,10 +847,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                 'APOFF': dict(),
                 'EPOFF': dict()}
 
-        '''
-        Limiters are a work in progress
-        '''
-
         for sn in df['SN_ASVCO2'].unique():
 
             # this seems like a silly way to check for existance. Maybe change
@@ -889,47 +885,47 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         temp=[]
 
         if table_data[filt2]['mean'].dropna().empty:
-            default[4]['mean'], default[5]['mean'] = '', ''
+            default[2]['mean'], default[3]['mean'] = '', ''
 
         elif limiters['pf_mean']:
 
             temp = table_data['APOFF']['mean'].dropna()
             perc = 100 * len(temp[abs(temp) > limiters["pf_mean"]]) / len(temp)
 
-            default[4]['mean'] = f'{perc}%'
+            default[2]['mean'] = f'{perc}%'
 
             temp = table_data['EPOFF']['mean'].dropna()
             perc = 100 * len(temp[abs(temp) > limiters["pf_mean"]]) / len(temp)
 
-            default[5]['mean'] = f'{perc}%'
+            default[3]['mean'] = f'{perc}%'
 
         # STDDEV pass/fail percentage
         if table_data[filt2]['stddev'].dropna().empty:
-            default[4]['stddev'], default[5]['stddev'] = '', ''
+            default[2]['stddev'], default[3]['stddev'] = '', ''
 
         elif limiters['pf_stddev']:
 
             temp = table_data['APOFF']['stddev'].dropna()
             perc = 100 * len(temp[abs(temp) > limiters["pf_stddev"]]) / len(temp)
-            default[4]['stddev'] = f'{perc}%'
+            default[2]['stddev'] = f'{perc}%'
 
             temp = table_data['EPOFF']['stddev'].dropna()
             perc = 100 * len(temp[abs(temp) > limiters["pf_stddev"]]) / len(temp)
-            default[5]['stddev'] = f'{perc}%'
+            default[3]['stddev'] = f'{perc}%'
 
         # Max pass/fail percentage
         if table_data[filt2]['max'].dropna().empty:
-            default[4]['max'], default[5]['max'] = '', ''
+            default[2]['max'], default[3]['max'] = '', ''
 
         elif limiters['pf_max']:
 
             temp = table_data['APOFF']['max'].dropna()
             perc = 100 * len(temp[abs(temp) > limiters["pf_max"]]) / len(temp)
-            default[4]['max'] = f'{perc}%'
+            default[2]['max'] = f'{perc}%'
 
             temp = table_data['EPOFF']['max'].dropna()
             perc = 100 * len(temp[abs(temp) > limiters["pf_max"]]) / len(temp)
-            default[5]['max'] = f'{perc}%'
+            default[3]['max'] = f'{perc}%'
 
         def_df = pd.DataFrame.from_dict(default)
         def_df.fillna('')
@@ -952,7 +948,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         return dcc.Graph(id='graphs'), [dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
 
-    def summary(dset, update):
+    def summary(dset):
         '''
         Returns
 
@@ -993,7 +989,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
     states = ['ZPON', 'ZPOFF', 'ZPPCAL', 'SPON', 'SPOFF', 'SPPCAL', 'EPON', 'EPOFF', 'APON', 'APOFF']
 
     dataset = data_import.Dataset(plot_set, window_start=tstart, window_end=tend)
-    plotters = switch_plot(plot_fig)(dataset, update)
+    plotters = switch_plot(plot_fig)(dataset)
 
     if plot_fig == 'summary table':
         pass
