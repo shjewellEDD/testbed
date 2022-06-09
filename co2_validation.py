@@ -5,6 +5,7 @@ TODO:
     The general callback enforces all filters to singletons instead of lists.
         Is this encessary?
     When the LiCOR is not calibrated it will return -50, we should filter these out by standard
+        Look into pump state to find the super high residuals (4000+ values)
     Datatable (may need to generalize the graph card for that)
 '''
 
@@ -44,9 +45,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+#                 requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+# server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -229,9 +230,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [None] or filt2 == [None] or filt3 == [None]:
+            if filt1 == [] or filt2 == [] or filt3 == []:
 
-                return dcc.Graph(figure=load_plots), filt_card
+                return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
             temp = []
 
@@ -331,9 +332,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [None] or filt2 == [None] or filt3 == [None]:
+            if filt1 == [] or filt2 == [] or filt3 == []:
 
-                return dcc.Graph(figure=load_plots), filt_card
+                return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
             temp = []
 
@@ -403,7 +404,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                     xaxis_title='Reference Gas (ppm)',
                                     )
 
-        return dcc.Graph(figure=load_plots), empty_tables, filt_card
+        return dcc.Graph(figure=load_plots), empty_tables, empty_tables, filt_card
 
     def multi_ref(dset, update):
         '''
@@ -433,11 +434,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [None] or filt2 == [None] or filt3 == [None] or filt4 == [None]:
+            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == []:
                 load_plots = make_subplots(rows=1, cols=1,
                                            shared_yaxes=False, shared_xaxes=True)
 
-                return load_plots, filt_card
+                return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
             temp = []
 
@@ -544,11 +545,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [None] or filt2 == [None] or filt3 == [None] or filt4 == [None] or filt5 == [None]:
+            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == [] or filt5 == []:
                 load_plots = make_subplots(rows=1, cols=1,
                                            shared_yaxes=False, shared_xaxes=True)
 
-                return load_plots, filt_card
+                return dcc.Graph(figure=load_plots), empty_tables,  filt_card
 
             temp = []
 
@@ -579,7 +580,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                 temp.append(df[df['INSTRUMENT_STATE'] == var])
 
             df = pd.merge(df, pd.concat(temp), how='right')
-
 
         else:
 
@@ -656,11 +656,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             # if we're filtering everything, don't worry about plotting
-            if filt1 == [None] or filt2 == [None] or filt3 == [None] or filt4 == [None]:
+            if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == []:
                 load_plots = make_subplots(rows=1, cols=1,
                                            shared_yaxes=False, shared_xaxes=True)
 
-                return load_plots, filt_card
+                return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
             temp = []
 
@@ -746,28 +746,24 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         df = df[(df['INSTRUMENT_STATE'] == 'APOFF') | (df['INSTRUMENT_STATE'] == 'EPOFF')]
 
-        limiters = {'range_min':     0,
-                    'range_max':     2,
-                    'pf_mean':       1,
+        limiters = {'pf_mean':       1,
                     'pf_stddev':     .5,
                     'pf_max':        2
                     }
 
-        default = [{'sn': 'Min', 'mean': 0, 'stddev': '', 'max': ''},  # defaults
-                   {'sn': 'Max', 'mean': 2, 'stddev': '', 'max': ''},
-                   {'sn': '', 'mean': 'Mean Residual', 'stddev': 'STDDEV', 'max': 'Max Residual'},
+        default = [{'sn': '', 'mean': 'Mean Residual', 'stddev': 'STDDEV', 'max': 'Max Residual'},
                    {'sn': 'Pass/Fail', 'mean': 1, 'stddev': .5, 'max': 2},  # defaults
                    {'sn': 'APOFF Fail %', 'mean': '', 'stddev': '', 'max': ''},
                    {'sn': 'EPOFF Fail %', 'mean': '', 'stddev': '', 'max': ''}
                    ]
 
         # default values
-        if filt1 == [None]:
+        if filt1 == []:
             filt1 = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'
         else:
             filt1 = filt1[0]
 
-        if (filt2 == [None]) or (set(filt2) == set(['APOFF', 'EPOFF'])):
+        if (filt2 == []) or (set(filt2) == set(['APOFF', 'EPOFF'])):
             filt2 = 'Both'
         else:
             filt2 = filt2[0]
@@ -781,27 +777,10 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             filt_card = dash.no_update
 
             if filt3 != None:
-
                 df = df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == filt3]
 
             # supposedly dash_tables will have built-in typing at some point in the future... this might make them even
             # more of a mess on the backend, but will help eliminate this mess of a guard clause
-
-            if (table_input[0]['mean'] is not None) or (table_input[0]['mean'] != ''):
-                try:
-                    limiters['range_min'] = float(table_input[0]['mean'])
-                    default[0]['mean'] = float(table_input[0]['mean'])
-                except (ValueError, TypeError):
-                    default[0]['mean'] = ''
-                    limiters['range_min'] = ''
-
-            if (table_input[1]['mean'] is not None) or (table_input[1]['mean'] != ''):
-                try:
-                    limiters['range_max'] = float(table_input[1]['mean'])
-                    default[1]['mean'] = float(table_input[1]['mean'])
-                except (ValueError, TypeError):
-                    limiters['range_max'] = ''
-                    default[1]['mean'] = ''
 
             if (table_input[3]['mean'] is not None) or (table_input[3]['mean'] != ''):
                 try:
@@ -871,13 +850,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         '''
         Limiters are a work in progress
         '''
-        # if limiters['range_min'] != '':
-        #     # df = df[df[filt1] > limiters['range_min']]
-        #     df = df[df['CO2_REF_LAB'] > limiters['range_min']]
-        #
-        # if limiters['range_max'] != '':
-        #     # df = df[df[filt1] < limiters['range_max']]
-        #     df = df[df['CO2_REF_LAB'] < limiters['range_max']]
 
         for sn in df['SN_ASVCO2'].unique():
 
@@ -922,15 +894,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         elif limiters['pf_mean']:
 
             temp = table_data['APOFF']['mean'].dropna()
-
-            #perc = 100 * len(table_data["APOFF"][abs(table_data["APOFF"]['mean']) > limiters["pf_mean"]]) / len(table_data["APOFF"])te
             perc = 100 * len(temp[abs(temp) > limiters["pf_mean"]]) / len(temp)
 
             default[4]['mean'] = f'{perc}%'
 
             temp = table_data['EPOFF']['mean'].dropna()
-
-            #perc = 100 * len(abs(table_data["EPOFF"][table_data["EPOFF"]['mean'] > limiters["pf_mean"]])) / len(table_data["EPOFF"])
             perc = 100 * len(temp[abs(temp) > limiters["pf_mean"]]) / len(temp)
 
             default[5]['mean'] = f'{perc}%'
@@ -942,17 +910,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         elif limiters['pf_stddev']:
 
             temp = table_data['APOFF']['stddev'].dropna()
-
-            #perc = 100 * len(abs(table_data["APOFF"][table_data["APOFF"]['stddev'] > limiters["pf_stddev"]])) / len(table_data["APOFF"])
             perc = 100 * len(temp[abs(temp) > limiters["pf_stddev"]]) / len(temp)
-
             default[4]['stddev'] = f'{perc}%'
 
             temp = table_data['EPOFF']['stddev'].dropna()
-
-            #perc = 100 * len(abs(table_data["EPOFF"][table_data["EPOFF"]['stddev'] > limiters["pf_stddev"]])) / len(table_data["EPOFF"])
             perc = 100 * len(temp[abs(temp) > limiters["pf_stddev"]]) / len(temp)
-
             default[5]['stddev'] = f'{perc}%'
 
         # Max pass/fail percentage
@@ -962,17 +924,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         elif limiters['pf_max']:
 
             temp = table_data['APOFF']['max'].dropna()
-
-            #perc = 100 * len(abs(table_data["APOFF"][table_data["APOFF"]['max'] > limiters["max"]])) / len(table_data["APOFF"])
             perc = 100 * len(temp[abs(temp) > limiters["pf_max"]]) / len(temp)
-
             default[4]['max'] = f'{perc}%'
 
             temp = table_data['EPOFF']['max'].dropna()
-
-            #perc = 100 * len(abs(table_data["EPOFF"][table_data["EPOFF"]['max'] > limiters["max"]])) / len(table_data["EPOFF"])
             perc = 100 * len(temp[abs(temp) > limiters["pf_max"]]) / len(temp)
-
             default[5]['max'] = f'{perc}%'
 
         def_df = pd.DataFrame.from_dict(default)
@@ -1012,7 +968,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'INSTRUMENT_STATE'])
 
 
-        return dcc.Graph(figure=load_plots), dash.no_update
+        return dcc.Graph(figure=load_plots), empty_tables, dash.no_update
 
     # enforce filter return as list
     if not isinstance(filt1, list):
