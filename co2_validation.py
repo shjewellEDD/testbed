@@ -39,9 +39,12 @@ custom_sets = [{'label': 'EPOFF & APOFF vs Ref Gas',    'value': 'resids'},
 
 colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
           'Light': {'bckgrd': '#FAF9F6', 'text': '#111111'},
-          'Green':  '#00FF00',
+          'Green':  '#2ECC40',
+          #'Green':  'green',
           'Blue':   '#0000FF',
-          'Red':    '#FF0000'}
+          #'Red':    'red'}
+          'Red':    '#FF4136'}
+
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
@@ -733,6 +736,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
     def summary_table(dset):
         '''
+        TODO:
+            Limiters are not preserved upon updating filter
+
         Returns
 
         :return:
@@ -782,29 +788,29 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             # supposedly dash_tables will have built-in typing at some point in the future... this might make them even
             # more of a mess on the backend, but will help eliminate this mess of a guard clause
 
-            if (table_input[3]['mean'] is not None) or (table_input[3]['mean'] != ''):
+            if (table_input[1]['mean'] is not None) or (table_input[1]['mean'] != ''):
                 try:
                     limiters['pf_mean'] = float(table_input[1]['mean'])
-                    default[3]['mean'] = float(table_input[1]['mean'])
+                    default[1]['mean'] = float(table_input[1]['mean'])
                 except (ValueError, TypeError):
                     limiters['pf_mean'] = ''
-                    default[3]['mean'] = ''
+                    default[1]['mean'] = ''
 
-            if (table_input[3]['stddev'] is not None) or (table_input[3]['stddev'] != ''):
+            if (table_input[1]['stddev'] is not None) or (table_input[1]['stddev'] != ''):
                 try:
                     limiters['pf_stddev'] = float(table_input[1]['stddev'])
-                    default[3]['stddev'] = float(table_input[1]['stddev'])
+                    default[1]['stddev'] = float(table_input[1]['stddev'])
                 except (ValueError, TypeError):
                     limiters['pf_stddev'] = ''
-                    default[3]['stddev'] = ''
+                    default[1]['stddev'] = ''
 
-            if (table_input[3]['max'] is not None) or (table_input[1]['max'] != ''):
+            if (table_input[1]['max'] is not None) or (table_input[1]['max'] != ''):
                 try:
                     limiters['pf_max'] = float(table_input[1]['max'])
-                    default[3]['max'] = float(table_input[1]['max'])
+                    default[1]['max'] = float(table_input[1]['max'])
                 except (ValueError, TypeError):
                     limiters['pf_max'] = ''
-                    default[3]['max'] = ''
+                    default[1]['max'] = ''
 
             # filter for Instrument state
             temp = []
@@ -820,11 +826,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                           {'label': 'STDDEV', 'value': 'CO2_RESIDUAL_STDDEV_ASVCO2'}
                           ]
 
-            #filt_list2 = []
             filt_list3 = []
 
-            # for state in df['INSTRUMENT_STATE'].unique():
-            #     filt_list2.append({'label': state, 'value': state})
 
             for rng in df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique():
                 filt_list3.append({'label': rng, 'value': rng})
@@ -935,15 +938,116 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                     id='tab1',
                                     style_table={'backgroundColor': colors[im_mode]['bckgrd']},
                                     style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
-                                                'textColor': colors[im_mode]['text']}
+                                                'textColor': colors[im_mode]['text']},
+                                    style_data_conditional=[
+                                        {
+                                            'if': {
+                                                'column_id':    'mean',
+                                                'filter_query': '("APOFF Fail %" = {sn} or "EPOFF Fail %" = {sn}) && {mean} = "0.0%"',
+                                            },
+                                            'backgroundColor': colors['Green'],
+                                            'color':       'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'stddev',
+                                                'filter_query': '("APOFF Fail %" = {sn} or "EPOFF Fail %" = {sn}) && {stddev} = "0.0%"',
+                                            },
+                                            'backgroundColor': colors['Green'],
+                                            'color': 'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'max',
+                                                'filter_query': '("APOFF Fail %" = {sn} or "EPOFF Fail %" = {sn}) && {max} = "0.0%"',
+                                            },
+                                            'backgroundColor': colors['Green'],
+                                            'color': 'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'mean',
+                                                'filter_query': '("APOFF Fail %" = {sn} or "EPOFF Fail %" = {sn}) && {mean} != "0.0%"'
+                                            },
+                                            'backgroundColor': colors['Red'],
+                                            'color': 'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'stddev',
+                                                'filter_query': '("APOFF Fail %" = {sn} or "EPOFF Fail %" = {sn}) && {stddev} != "0.0%"'
+                                            },
+                                            'backgroundColor': colors['Red'],
+                                            'color': 'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'max',
+                                                'filter_query': '("APOFF Fail %" = {sn} or "EPOFF Fail %" = {sn}) && {max} != "0.0%"'
+                                            },
+                                            'backgroundColor': colors['Red'],
+                                            'color': 'black'
+                                        }
+                                    ]
                                     )
 
         tab2 = dash_table.DataTable(table_data[filt2].to_dict('records'),
                                     columns=[{"name": i, "id": i} for i in table_data[filt2].columns],
                                     id='tab2',
+                                    sort_action='native',
                                     style_table={'backgroundColor': colors[im_mode]['bckgrd']},
                                     style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
-                                                'textColor': colors[im_mode]['text']}
+                                                'textColor': colors[im_mode]['text']},
+                                    style_data_conditional=[
+                                        {
+                                            'if': {
+                                                'column_id': 'mean',
+                                                'filter_query': '{{mean}} > {}'.format(limiters['pf_mean']),
+                                            },
+                                            'backgroundColor': colors['Red'],
+                                            'color': 'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'mean',
+                                                'filter_query': '{{mean}} < {}'.format(-1*limiters['pf_mean']),
+                                            },
+                                            'backgroundColor': colors['Red'],
+                                            'color': 'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'stddev',
+                                                'filter_query': '{{stddev}} > {}'.format(limiters['pf_stddev']),
+                                            },
+                                            'backgroundColor': colors['Red'],
+                                            'color': 'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'stddev',
+                                                'filter_query': '{{stddev}} < {}'.format(-1*limiters['pf_stddev']),
+                                            },
+                                            'backgroundColor': colors['Red'],
+                                            'color': 'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'max',
+                                                'filter_query': '{{max}} > {}'.format(limiters['pf_max']),
+                                            },
+                                            'backgroundColor': colors['Red'],
+                                            'color': 'black'
+                                        },
+                                        {
+                                            'if': {
+                                                'column_id': 'max',
+                                                'filter_query': '{{max}} < {}'.format(-1 * limiters['pf_max']),
+                                            },
+                                            'backgroundColor': colors['Red'],
+                                            'color': 'black'
+                                        },
+                                    ]
                                     )
 
         return dcc.Graph(id='graphs'), [dcc.Loading(tab1), dcc.Loading(tab2)], filt_card
