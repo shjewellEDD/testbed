@@ -6,7 +6,6 @@ TODO:
         Is this encessary?
     When the LiCOR is not calibrated it will return -50, we should filter these out by standard
         Look into pump state to find the super high residuals (4000+ values)
-    Datatable (may need to generalize the graph card for that)
 '''
 
 import pandas as pd
@@ -48,9 +47,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                 requests_pathname_prefix='/co2/validation/',
+                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-# server = app.server
+server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -737,7 +736,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
     def summary_table(dset):
         '''
         TODO:
-            Limiters are not preserved upon updating filter
 
         Returns
 
@@ -940,6 +938,13 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                     style_cell={'backgroundColor': colors[im_mode]['bckgrd'],
                                                 'textColor': colors[im_mode]['text']},
                                     style_data_conditional=[
+                                        {
+                                            'if': {
+                                                'row_index': 1,
+                                            },
+                                            'fontWeight': 'bold',
+                                            'color':      'green'
+                                        },
                                         {
                                             'if': {
                                                 'column_id':    'mean',
