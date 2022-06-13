@@ -47,9 +47,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                 requests_pathname_prefix='/co2/validation/',
+                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-# server = app.server
+server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -1053,7 +1053,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
     def summary(dset):
         '''
         TODO:
-            Need to get average for each validaiton date, a la the summary table
+            Need to get average for each validation date, a la the summary table
 
         Returns
 
@@ -1082,13 +1082,26 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
+            temp = []
+
+            for var in filt2:
+                temp.append(df[df['SN_ASVCO2'] == var])
+            df = pd.merge(df, pd.concat(temp), how='right')
+
+            temp = []
+
+            for var in filt3:
+                temp.append(df[df['ASVCO2_firmware'] == var])
+            df = pd.merge(df, pd.concat(temp), how='right')
+
+            temp = []
+
+            for var in filt4:
+                temp.append(df[df['last_ASVCO2_validation'] == var])
+            df = pd.merge(df, pd.concat(temp), how='right')
+
         # if we are just changing pages, then we need to refresh the filter card
         else:
-
-            if filt1 == 'TCORR':
-                ploty = 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'
-            else:
-                ploty = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
 
             filt_list2 = []
             for var in list(df['SN_ASVCO2'].unique()):
@@ -1106,17 +1119,29 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                          dhtml.Label('Out of Range'),
                          dcc.RadioItems(id='filter1', options=['Dry', 'TCORR'], value='Dry'),
                          dhtml.Label('Serial #'),
-                         dcc.Dropdown(id='filter2', options=filt_list2, value=filt_list2[0]['value']),
+                         dcc.Dropdown(id='filter2', options=filt_list2, value=df['SN_ASVCO2'].unique(), multi=True,
+                                      clearable=True),
                          dhtml.Label('Firmware'),
-                         dcc.Dropdown(id='filter3', options=filt_list3, value=filt_list3[0]['value']),
-                         dcc.Checklist(id='Last Validation'),
-                         dcc.Dropdown(id='filter4', options=filt_list4, value=filt_list4[0]['value']),
+                         dcc.Dropdown(id='filter3', options=filt_list3, value=df['ASVCO2_firmware'].unique(), multi=True,
+                                      clearable=True),
+                         dhtml.Label(id='Last Validation'),
+                         dcc.Dropdown(id='filter4', options=filt_list4, value=df['last_ASVCO2_validation'].unique(),
+                                      multi=True, clearable=True),
                          dcc.Checklist(id='filter5'),
                          dhtml.Button('Update Filter', id='update')]
 
-        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df[ploty], name='Residual',
-                               hoverinfo='x+y+name', mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='SPPCAL',
+        ploty = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'
+
+        if filt1 == 'TCORR':
+            ploty = 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'
+
+        data_mean = df.groupby('last_ASVCO2_validation').mean()
+        data_stddev = df.groupby('last_ASVCO2_validation').std()
+
+        data_labels = dict(zip(data_mean.index, data_mean.index))
+
+        load_plots.add_scatter(x=data_mean['CO2_REF_LAB'], y=data_mean[ploty], name=ploty,
+                               error_y=dict(array=data_stddev[ploty]),
                                hoverinfo='x+y+name', mode='markers', marker={'size': 5}, row=1, col=1)
 
         load_plots['layout'].update(
