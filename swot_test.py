@@ -130,7 +130,7 @@ graph_card = dbc.Card(
 )
 
 app.layout = dhtml.Div([
-   dbc.Container([
+    dbc.Container([
             dbc.Row([dhtml.H1('Prawler M200')]),
             dbc.Row([
                 dbc.Col(graph_card, width=9),
@@ -140,7 +140,34 @@ app.layout = dhtml.Div([
                                   table_card],
                         width=3)
                     ])
-               ])
+               ]),
+    dbc.Row([
+        dbc.Col(width=1, children=
+        [
+            dhtml.Img(src='https://www.pmel.noaa.gov/sites/default/files/PMEL-meatball-logo-sm.png', height=100,
+                     width=100)
+        ]),
+        dbc.Col(width=11, children=[
+            dhtml.Div(children=[
+                dcc.Link('National Oceanic and Atmospheric Administration', href='https://www.noaa.gov/'),
+            ]),
+            dhtml.Div(children=[
+                dcc.Link('Pacific Marine Environmental Laboratory', href='https://www.pmel.noaa.gov/'),
+            ]),
+            dhtml.Div(children=[
+                dcc.Link('oar.pmel.webmaster@noaa.gov', href='mailto:oar.pmel.webmaster@noaa.gov')
+            ]),
+            dhtml.Div(children=[
+                dcc.Link('DOC |', href='https://www.commerce.gov/'),
+                dcc.Link(' NOAA |', href='https://www.noaa.gov/'),
+                dcc.Link(' OAR |', href='https://www.research.noaa.gov/'),
+                dcc.Link(' PMEL |', href='https://www.pmel.noaa.gov/'),
+                dcc.Link(' Privacy Policy |', href='https://www.noaa.gov/disclaimer'),
+                dcc.Link(' Disclaimer |', href='https://www.noaa.gov/disclaimer'),
+                dcc.Link(' Accessibility', href='https://www.pmel.noaa.gov/accessibility')
+            ])
+        ])
+    ])
 ])
 
 
