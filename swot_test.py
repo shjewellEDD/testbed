@@ -15,6 +15,7 @@ TODO:
 '''
 
 import dash
+import dash_auth
 from dash import html as dhtml
 from dash import dcc, dash_table
 from dash.dependencies import Input, Output, State
@@ -27,12 +28,19 @@ import data_import
 import datetime
 import pandas as pd
 
+# PASSWORD... given that this is supposed to be more of a token barrier rather than proper security, where should we put
+# this?
+access_keys = {
+    'pmel':    'realize'
+}
+
 prawler = [{'label': 'M200', 'value': 'M200'}]
 
 subset = {'M200':   [{'label':   'M200 Eng', 'value': 'M200Eng'},
                     {'label':   'M200 Sci', 'value': 'M200Sci'}
                     ]
           }
+
 
 '''
 ========================================================================================================================
@@ -54,9 +62,12 @@ colors = {'background': '#111111', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/swot/test/',
+#                requests_pathname_prefix='/swot/test/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+#server = app.server
+
+auth = dash_auth.BasicAuth(app, access_keys)
+
 
 external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
 
@@ -217,6 +228,12 @@ def change_prawler(dataset):
 )
 
 def overlay_vars(prawl):
+    '''
+    Populates overlay variables dropdown
+
+    :param prawl:
+    :return:
+    '''
 
     if not prawl:
 
@@ -241,6 +258,23 @@ def overlay_vars(prawl):
 
 
 def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
+    '''
+    Because plotly only allows an graphical object be touched by a single callback, everything that changes the graph
+    is contain here, making this a monstrosity.
+
+    The general structure is:
+        load data
+        if-then block if the user wants a custom variable (x-per-day)
+        layout changes
+
+    :param dataset:
+    :param select_var:
+    :param ovr_var:
+    :param start_date:
+    :param end_date:
+    :param ovr_prawl:
+    :return:
+    '''
 
     eng_set = data_import.Dataset(dataset_dict[dataset])
     new_data = eng_set.get_data(window_start=start_date, window_end=end_date, variables=[select_var])
