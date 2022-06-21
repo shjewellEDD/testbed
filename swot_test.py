@@ -193,6 +193,11 @@ Callbacks
     Input('select_eng', 'value'))
 
 def change_prawler(dataset):
+    '''
+    Updates dropdowns and date ranges when prawler dataset is changed.
+    :param dataset:
+    :return:
+    '''
 
     eng_set = data_import.Dataset(dataset_dict[dataset])
 
@@ -202,7 +207,7 @@ def change_prawler(dataset):
     end_date = eng_set.t_end.date()
     first_var = eng_set.ret_vars()[0]
 
-    return eng_set.ret_vars(), min_date_allowed, max_date_allowed, start_date, end_date, first_var
+    return eng_set.gen_drop_vars(), min_date_allowed, max_date_allowed, start_date, end_date, first_var
 
 
 #overlay selection
@@ -219,7 +224,7 @@ def overlay_vars(prawl):
 
     dset = data_import.Dataset(dataset_dict[prawl])
 
-    return dset.ret_vars()
+    return dset.gen_drop_vars()
 
 #engineering data selection
 @app.callback(
@@ -300,8 +305,6 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
         except TypeError:
             table_data = sci_set.to_dict()
 
-    #elif select_var in list(new_data.columns):
-
     else:
         if ovr_var:
             efig = px.scatter(y=new_data[select_var], x=new_data['time'], color=ovr_data[ovr_var],
@@ -334,7 +337,8 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
     efig.update_layout(
         plot_bgcolor=colors['background'],
         paper_bgcolor=colors['background'],
-        font_color=colors['text']
+        font_color=colors['text'],
+        yaxis_title=select_var,
     )
 
     return efig, table_data, columns, t_mean
