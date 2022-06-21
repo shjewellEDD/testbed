@@ -5,7 +5,7 @@ TODO:
     Need exception handler for bad urls
     Do we need the Prawler specific functions, or should those be offloaded
         Prawer specific fuctions should have date guards added
-    Maybe make ret_data invoke get_date if self.data is empty?
+    Maybe make ret_data invoke get_data if self.data is empty?
 
 '''
 
@@ -14,8 +14,10 @@ import datetime
 import requests
 
 
-# ======================================================================================================================
-# helpful functions
+'''
+========================================================================================================================
+Helpful functions, mostly for dealing with timestamps
+'''
 
 # generates ERDDAP compatable date
 def gen_erddap_date(edate):
@@ -190,11 +192,17 @@ class Dataset:
 
 
     def get_data(self, **kwargs):
-        # IDEA:
-        # Make both add and exclude variables options with kwargs
-        #
-        #https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv?time%2Clatitude&time%3E=2022-04-03T00%3A00%3A00Z&time%3C=2022-04-10T14%3A59%3A14Z
-        #[url base] + '.csv?time%2C'+ [var1] + '%2C' + [var2] + '%2C' + .... + [time1] + '%3C' + [time2]
+        '''
+        IDEA:
+        Make both add and exclude variables options with kwargs
+
+        example:
+        https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv?time%2Clatitude&time%3E=2022-04-03T00%3A00%3A00Z&time%3C=2022-04-10T14%3A59%3A14Z
+        [url base] + '.csv?time%2C'+ [var1] + '%2C' + [var2] + '%2C' + .... + [time1] + '%3C' + [time2]
+
+        :param kwargs:
+        :return:
+        '''
 
         self.data = pd.DataFrame()
 
@@ -206,11 +214,10 @@ class Dataset:
         if 'window_start' in kwargs or 'window_end' in kwargs:
             self.window_flag = True
 
+        # duplicate vars cause HTML causes errors, sets don't have duplicates
         vars = set(variables)
 
         spec_url = f'{self.url}'
-
-        # duplicate vars cause HTML causes errors, sets don't have duplicates
 
         if self.time_flag:
             spec_url = f'{spec_url}?time'
@@ -254,6 +261,7 @@ class Dataset:
         if self.time_flag:
             temp = self.data['time'].apply(from_erddap_date)
             self.data['time'] = temp
+            self.data['timestring'] = self.data['time'].dt.strftime('%Y-%m-%d %H:%M')
 
         return self.data
 

@@ -1,11 +1,9 @@
 '''
 TODO:
+    Features:
+        Authentication
+        Handing off between dashboards OR combine into a single dashboard
     Improvement:
-        Things could be simplified by adding overlay data as a column to the plot data, instead of using seperate
-        DataFrame
-        Color:
-            Add color to SB depth
-            Let user select color driver from dropdown
         Date errors:
             M200 science has a bunch of dates from the 70s and 80s
             How do we deal with this
@@ -29,9 +27,12 @@ import data_import
 import datetime
 import pandas as pd
 
-prawlers = [{'label':   'M200 Eng', 'value': 'M200Eng'},
-            {'label':   'M200 Sci', 'value': 'M200Sci'}
-            ]
+prawler = [{'label': 'M200', 'value': 'M200'}]
+
+subset = {'M200':   [{'label':   'M200 Eng', 'value': 'M200Eng'},
+                    {'label':   'M200 Sci', 'value': 'M200Sci'}
+                    ]
+          }
 
 '''
 ========================================================================================================================
@@ -65,8 +66,8 @@ set_card = dbc.Card([
                 dhtml.H5('Plot'),
                 dcc.Dropdown(
                     id="select_eng",
-                    options=prawlers,
-                    value=prawlers[0]['value'],
+                    options=subset['M200'],
+                    value=subset['M200'][0]['value'],
                     clearable=False
                 ),
                 dcc.Dropdown(
@@ -83,7 +84,7 @@ overlay_card = dbc.Card([
                 dhtml.H5('Overlay'),
                 dcc.Dropdown(
                     id="overlay_prawler",
-                    options=prawlers,
+                    options=subset['M200'],
                     clearable=True
                 ),
                 dcc.Dropdown(
@@ -96,10 +97,14 @@ overlay_card = dbc.Card([
 
 date_card = dbc.Card([
     dbc.CardBody(
-        dcc.DatePickerRange(
-            id='date-picker',
-            style={'backgroundColor': colors['background']},
-        ),
+        children=[
+            dhtml.H5('Date Range'),
+            dcc.DatePickerRange(
+                id='date-picker',
+                style={'backgroundColor': colors['background']},
+
+            ),
+        ]
     )
 ])
 
@@ -113,7 +118,7 @@ table_card = dbc.Card([
                                ),
                   dash_table.DataTable(id='dtable',
                                        style_table={'backgroundColor': colors['background'],
-                                                    'height'         :'300px',
+                                                    'height'         :'380px',
                                                     'overflowY'       :'auto'},
                                        style_cell={'backgroundColor': colors['background'],
                                                    'textColor':       colors['text']}
@@ -133,12 +138,13 @@ app.layout = dhtml.Div([
     dbc.Container([
             dbc.Row([dhtml.H1('Prawler M200')]),
             dbc.Row([
+                dbc.Col(dhtml.Div([date_card])),
+                dbc.Col(dhtml.Div([set_card])),
+                dbc.Col(dhtml.Div([overlay_card]))
+            ]),
+            dbc.Row(children=[
                 dbc.Col(graph_card, width=9),
-                dbc.Col(children=[date_card,
-                                  set_card,
-                                  overlay_card,
-                                  table_card],
-                        width=3)
+                dbc.Col(table_card, width=3)
                     ])
                ]),
     dbc.Row([
@@ -246,6 +252,8 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
         ovr_data = pd.concat(map(lambda c: ovr_data[c].dropna().reindex(new_data['time'], method='nearest'),
                                  ovr_data.columns), axis=1)
 
+        new_data[ovr_var] = ovr_data[ovr_var]
+
     colorscale = px.colors.sequential.Viridis
 
     if select_var == 'trips_per_day':
@@ -296,7 +304,6 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
 
     else:
         if ovr_var:
-
             efig = px.scatter(y=new_data[select_var], x=new_data['time'], color=ovr_data[ovr_var],
                               color_continuous_scale=colorscale)
             efig.layout['coloraxis']['colorbar']['title']['text'] = ovr_var
@@ -304,11 +311,14 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
         else:
             efig = px.scatter(new_data, y=select_var, x='time')
 
-        columns = [{"name": 'Date', "id": 'datetime'},
+        columns = [{"name": 'Date', "id": 'timestring'},
                    {'name': select_var, 'id': select_var}]
 
+        if ovr_var:
+            columns.append({'name': ovr_var, 'id': ovr_var})
+
         try:
-            t_mean = 'Average ' + select_var + ': ' + str(round(new_data.loc[:, select_var].mean(), 3))
+            t_mean = f'Average {select_var}: {str(round(new_data.loc[:, select_var].mean(), 3))}'
         except TypeError:
             t_mean = ''
 
