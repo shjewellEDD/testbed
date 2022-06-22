@@ -2,6 +2,8 @@
 Gas Validaiton Dashboard
 
 TODO:
+    Double check filters on histogram, particularly reference range
+    Summary table ref range doesn't have '0 to 750' option
     The general callback enforces all filters to singletons instead of lists.
         Is this encessary?
     When the LiCOR is not calibrated it will return -50, we should filter these out by standard
@@ -196,6 +198,26 @@ def set_view(set_val):
 
 def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend, table_input):
 
+    def gen_filt_list(col_var, dat):
+        '''
+        Generates dropdown compatiable lists for the filters
+        :param uniq_var:
+        :param dat:
+        :return:
+        '''
+
+        filt_list = []
+
+        for var in list(dat[col_var].unique()):
+
+            if not isinstance(var, str):
+                continue
+
+            filt_list.append({'label': var, 'value': var})
+
+        return filt_list
+
+
     empty_tables = dcc.Loading([dash_table.DataTable(id='tab1'), dash_table.DataTable(id='tab2')])
 
     def off_ref(dset):
@@ -257,14 +279,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         # if we are just changing pages, then we need to refresh the filter card
         else:
 
-            filt_list2 = []
-            for var in list(df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()):
-                filt_list2.append({'label': var, 'value': var})
-
-            filt_list3 = []
-            for var in list(df['SN_ASVCO2'].unique()):
-                filt_list3.append({'label': var, 'value': var})
-
+            filt_list2 = gen_filt_list('CO2_DRY_RESIDUAL_REF_LAB_TAG', df)
+            filt_list3 = gen_filt_list('SN_ASVCO2', df)
 
             # default filter card
             filt_card = [dcc.DatePickerRange(id='date-picker'),
@@ -360,13 +376,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         # if we are just changing pages, then we need to refresh the filter card
         else:
 
-            filt_list2 = []
-            for var in list(df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()):
-                filt_list2.append({'label': var, 'value': var})
-
-            filt_list3 = []
-            for var in list(df['SN_ASVCO2'].unique()):
-                filt_list3.append({'label': var, 'value': var})
+            filt_list2 = gen_filt_list('CO2_DRY_RESIDUAL_REF_LAB_TAG', df)
+            filt_list3 = gen_filt_list('SN_ASVCO2', df)
 
             filt_card = [dcc.DatePickerRange(id='date-picker'),
                          dhtml.Label('Out of Range'),
@@ -468,16 +479,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         else:
 
-            filt_list1 = []
-            filt_list3 = []
-            filt_list4 = []
-
-            for var in df['SN_ASVCO2'].unique():
-                filt_list1.append({'label': var, 'value': var})
-            for var in df['ASVCO2_firmware'].unique():
-                filt_list3.append({'label': var, 'value': var})
-            for var in list(df['last_ASVCO2_validation'].unique()):
-                filt_list4.append({'label': var, 'value': var})
+            filt_list1 = gen_filt_list('SN_ASVCO2', df)
+            filt_list3 = gen_filt_list('ASVCO2_firmware', df)
+            filt_list4 = gen_filt_list('last_ASVCO2_validation', df)
 
             filt_card = [dcc.DatePickerRange(id='date-picker'),
                          dhtml.Label('Serial #'),
@@ -585,16 +589,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         else:
 
-            filt_list1 = []
-            filt_list3 = []
-            filt_list4 = []
-
-            for var in df['SN_ASVCO2'].unique():
-                filt_list1.append({'label': var, 'value': var})
-            for var in df['ASVCO2_firmware'].unique():
-                filt_list3.append({'label': var, 'value': var})
-            for var in df['last_ASVCO2_validation'].unique():
-                filt_list4.append({'label': var, 'value': var})
+            filt_list1 = gen_filt_list('SN_ASVCO2', df)
+            filt_list3 = gen_filt_list('ASVCO2_firmware', df)
+            filt_list4 = gen_filt_list('last_ASVCO2_validation', df)
 
             filt_card = [dcc.DatePickerRange(id='date-picker'),
                          dhtml.Label('Serial #'),
@@ -693,16 +690,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         else:
 
-            filt_list1 = []
-            filt_list3 = []
-            filt_list4 = []
-
-            for var in df['ASVCO2_firmware'].unique():
-                filt_list1.append({'label': var, 'value': var})
-            for var in df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique():
-                filt_list3.append({'label': var, 'value': var})
-            for var in df['last_ASVCO2_validation'].unique():
-                filt_list4.append({'label': var, 'value': var})
+            filt_list1 = gen_filt_list('ASVCO2_firmware', df)
+            filt_list3 = gen_filt_list('CO2_DRY_RESIDUAL_REF_LAB_TAG', df)
+            filt_list4 = gen_filt_list('last_ASVCO2_validation', df)
 
             filt_card = [dcc.DatePickerRange(id='date-picker'),
                          dhtml.Label('ASVCO2 firmware'),
@@ -1103,17 +1093,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         # if we are just changing pages, then we need to refresh the filter card
         else:
 
-            filt_list2 = []
-            for var in list(df['SN_ASVCO2'].unique()):
-                filt_list2.append({'label': var, 'value': var})
-
-            filt_list3 = []
-            for var in list(df['ASVCO2_firmware'].unique()):
-                filt_list3.append({'label': var, 'value': var})
-
-            filt_list4 = []
-            for var in list(df['last_ASVCO2_validation'].unique()):
-                filt_list4.append({'label': var, 'value': var})
+            filt_list2 = gen_filt_list('SN_ASVCO2', df)
+            filt_list3 = gen_filt_list('ASVCO2_firmware', df)
+            filt_list4 = gen_filt_list('last_ASVCO2_validation', df)
 
             filt_card = [dcc.DatePickerRange(id='date-picker'),
                          dhtml.Label('Out of Range'),
@@ -1183,7 +1165,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
     else:
         plotters[0].figure.update_layout(height=600,
             title=' ',
-            #hovermode='x unified',
             xaxis_showticklabels=True,
             yaxis_fixedrange=False,
             plot_bgcolor=colors[im_mode]['bckgrd'],
@@ -1193,7 +1174,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             xaxis_gridcolor=colors[im_mode]['text'],
             yaxis_zerolinecolor=colors[im_mode]['text'],
             xaxis_zerolinecolor=colors[im_mode]['text'],
-            #autosize=True,
             #xaxis=dict(showgrid=False),
             showlegend=True, modebar={'orientation': 'h'},
             margin=dict(l=25, r=25, b=25, t=25, pad=4)
