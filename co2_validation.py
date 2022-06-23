@@ -4,10 +4,12 @@ Gas Validaiton Dashboard
 TODO:
     Double check filters on histogram, particularly reference range
     Summary table ref range doesn't have '0 to 750' option
+    Plots and filters do not match after changing Display. How to fix this?
     The general callback enforces all filters to singletons instead of lists.
         Is this encessary?
     When the LiCOR is not calibrated it will return -50, we should filter these out by standard
         Look into pump state to find the super high residuals (4000+ values)
+            Is this being fixed at the ERDDAP level?
 '''
 
 import pandas as pd
@@ -41,17 +43,15 @@ custom_sets = [{'label': 'EPOFF & APOFF vs Ref Gas',    'value': 'resids'},
 colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
           'Light': {'bckgrd': '#FAF9F6', 'text': '#111111'},
           'Green':  '#2ECC40',
-          #'Green':  'green',
           'Blue':   '#0000FF',
-          #'Red':    'red'}
           'Red':    '#FF4136'}
 
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+#                 requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+# server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -169,6 +169,14 @@ def change_set(dataset_url):
      Input('select_display', 'value'))
 
 def set_view(set_val):
+    '''
+    When the datatable is selected, makes the table visible and hides the plot.
+    When anything else is selected, hides the table and makes the plot visible.
+
+    :param set_val:
+    :return:
+    '''
+
 
     if set_val == "summary table":
 
@@ -197,6 +205,28 @@ def set_view(set_val):
      ])
 
 def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, filt5, tstart, tend, table_input):
+    '''
+    The master function, entirely dedicated to the plot/table. Controls filtering, display plot, datatable and date
+    picker. This feels both messy and necessary given Plotly's restrictions on callbacks.
+
+    Utility functions at the top,
+    display plots are controlled by a switch dict at the bottom.
+    Each display page has its own function in the middle
+
+    :param plot_set:
+    :param plot_fig:
+    :param im_mode:
+    :param update:
+    :param filt1:
+    :param filt2:
+    :param filt3:
+    :param filt4:
+    :param filt5:
+    :param tstart:
+    :param tend:
+    :param table_input:
+    :return:
+    '''
 
     def gen_filt_list(col_var, dat):
         '''
@@ -217,7 +247,25 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         return filt_list
 
+    def filter_func(dat, filter):
+        '''
+        Filters dataframe and concatenates result
 
+        :param dat:
+        :param vars:
+        :return:
+        '''
+
+        for filt in filt_vars:
+
+            temp = []
+
+            for var in filt:
+                temp.append(dat[dat[] == var])
+            df = pd.merge(df, pd.concat(temp), how='right')
+
+
+    #an empty table for plot displays
     empty_tables = dcc.Loading([dash_table.DataTable(id='tab1'), dash_table.DataTable(id='tab2')])
 
     def off_ref(dset):
@@ -259,6 +307,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
             temp = []
+
+            filts = ['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
 
             for var in filt1:
                 temp.append(df[df['OUT_OF_RANGE'] == var])
@@ -354,6 +404,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
+            filts =['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
             temp = []
 
             for var in filt1:
@@ -453,6 +504,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
+            filts = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation']
             temp = []
 
             for var in filt1:
@@ -557,6 +609,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables,  filt_card
 
+            filts = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation', 'INSTRUMENT_STATE']
             temp = []
 
             for var in filt1:
@@ -661,6 +714,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
+            filts = ['ASVCO2_firmware', 'INSTRUMENT_STATE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'last_ASVCO2_validation']
             temp = []
 
             for var in filt1:
@@ -726,6 +780,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
     def summary_table(dset):
         '''
         TODO:
+
+        The filters here seem to work, despite being a nightmare.
 
         Returns
 
@@ -1072,6 +1128,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
+            filts = ['SN_ASVCO2', 'ASVCO2_firmware', 'last_ASVCO2_validation']
             temp = []
 
             for var in filt2:
