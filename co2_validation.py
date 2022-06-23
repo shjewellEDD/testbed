@@ -49,9 +49,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                 requests_pathname_prefix='/co2/validation/',
+                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-# server = app.server
+server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -247,22 +247,27 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         return filt_list
 
-    def filter_func(dat, filter):
+    def filter_func(dat, cols, filt_vars):
         '''
         Filters dataframe and concatenates result
 
         :param dat:
-        :param vars:
+        :param filt_vars:
+        :param cols:
         :return:
         '''
 
-        for filt in filt_vars:
+        #for filt in filt_vars:
+        # it's possible we'll have these as a pre-existing dict, rather than needing to generate it on the fly
+        for col, filt_by in dict(zip(cols, filt_vars)).items():
 
             temp = []
 
-            for var in filt:
-                temp.append(dat[dat[] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            for var in filt_by:
+                temp.append(dat[dat[col] == var])
+            dat = pd.merge(dat, pd.concat(temp), how='right')
+
+        return dat
 
 
     #an empty table for plot displays
@@ -306,25 +311,27 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
-            temp = []
 
-            filts = ['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
+            filt_cols = ['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
+            filts = [filt1, filt2, filt3]
 
-            for var in filt1:
-                temp.append(df[df['OUT_OF_RANGE'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            df = filter_func(df, filt_cols, filts)
 
-            temp = []
-
-            for var in filt2:
-                temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
-
-            temp = []
-
-            for var in filt3:
-                temp.append(df[df['SN_ASVCO2'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            # for var in filt1:
+            #     temp.append(df[df['OUT_OF_RANGE'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt2:
+            #     temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt3:
+            #     temp.append(df[df['SN_ASVCO2'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
 
         # if we are just changing pages, then we need to refresh the filter card
         else:
@@ -404,24 +411,26 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
-            filts =['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
-            temp = []
+            filt_cols =['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
+            filts = [filt1, filt2, filt3]
 
-            for var in filt1:
-                temp.append(df[df['OUT_OF_RANGE'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            df = filter_func(df, filt_cols, filts)
 
-            temp = []
-
-            for var in filt2:
-                temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
-
-            temp = []
-
-            for var in filt3:
-                temp.append(df[df['SN_ASVCO2'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            # for var in filt1:
+            #     temp.append(df[df['OUT_OF_RANGE'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt2:
+            #     temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt3:
+            #     temp.append(df[df['SN_ASVCO2'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
 
 
         # if we are just changing pages, then we need to refresh the filter card
@@ -504,30 +513,32 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
-            filts = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation']
-            temp = []
+            filt_cols = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation']
+            filts = [filt1, filt2, filt3, filt4]
 
-            for var in filt1:
-                temp.append(df[df['SN_ASVCO2'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            df = filter_func(df, filt_cols, filts)
 
-            temp = []
-
-            for var in filt2:
-                temp.append(df[df['CO2DETECTOR_firmware'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
-
-            temp = []
-
-            for var in filt3:
-                temp.append(df[df['ASVCO2_firmware'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
-
-            temp = []
-
-            for var in filt4:
-                temp.append(df[df['last_ASVCO2_validation'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            # for var in filt1:
+            #     temp.append(df[df['SN_ASVCO2'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt2:
+            #     temp.append(df[df['CO2DETECTOR_firmware'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt3:
+            #     temp.append(df[df['ASVCO2_firmware'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt4:
+            #     temp.append(df[df['last_ASVCO2_validation'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
 
         else:
 
@@ -609,36 +620,38 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables,  filt_card
 
-            filts = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation', 'INSTRUMENT_STATE']
-            temp = []
+            filt_cols = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation', 'INSTRUMENT_STATE']
+            filts = [filt1, filt2, filt3, filt4, filt5]
 
-            for var in filt1:
-                temp.append(df[df['SN_ASVCO2'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            df = filter_func(df, filt_cols, filts)
 
-            temp = []
-
-            for var in filt2:
-                temp.append(df[df['CO2DETECTOR_firmware'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
-
-            temp = []
-
-            for var in filt3:
-                temp.append(df[df['ASVCO2_firmware'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
-
-            temp = []
-
-            for var in filt4:
-                temp.append(df[df['last_ASVCO2_validation'] == var])
-
-            temp = []
-
-            for var in filt5:
-                temp.append(df[df['INSTRUMENT_STATE'] == var])
-
-            df = pd.merge(df, pd.concat(temp), how='right')
+            # for var in filt1:
+            #     temp.append(df[df['SN_ASVCO2'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt2:
+            #     temp.append(df[df['CO2DETECTOR_firmware'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt3:
+            #     temp.append(df[df['ASVCO2_firmware'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt4:
+            #     temp.append(df[df['last_ASVCO2_validation'] == var])
+            #
+            # temp = []
+            #
+            # for var in filt5:
+            #     temp.append(df[df['INSTRUMENT_STATE'] == var])
+            #
+            # df = pd.merge(df, pd.concat(temp), how='right')
 
         else:
 
@@ -714,30 +727,34 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
-            filts = ['ASVCO2_firmware', 'INSTRUMENT_STATE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'last_ASVCO2_validation']
-            temp = []
+            # ASVCO2_firmware is a special case
+            #filt_cols = ['ASVCO2_firmware', 'INSTRUMENT_STATE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'last_ASVCO2_validation']
+            filt_cols = ['INSTRUMENT_STATE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'last_ASVCO2_validation']
+            filts = [filt2, filt3, filt4]
 
-            for var in filt1:
-                temp.append(df[df['ASVCO2_firmware'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            df = filter_func(df, filt_cols, filts)
 
-            temp = []
-
-            for var in filt2:
-                temp.append(df[df['INSTRUMENT_STATE'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
-
-            temp = []
-
-            for var in filt3:
-                temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
-
-            temp = []
-
-            for var in filt4:
-                temp.append(df[df['last_ASVCO2_validation'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            # for var in filt1:
+            #     temp.append(df[df['ASVCO2_firmware'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt2:
+            #     temp.append(df[df['INSTRUMENT_STATE'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt3:
+            #     temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt4:
+            #     temp.append(df[df['last_ASVCO2_validation'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
 
             for co2_set in filt1:
                 load_plots.add_trace(go.Histogram(x=df[co2_set], name=co2_set, xbins=dict(size=1)), row=1, col=1)
@@ -1128,24 +1145,28 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
-            filts = ['SN_ASVCO2', 'ASVCO2_firmware', 'last_ASVCO2_validation']
-            temp = []
+            filt_cols = ['SN_ASVCO2', 'ASVCO2_firmware', 'last_ASVCO2_validation']
+            filts = [filt2, filt3, filt4]
 
-            for var in filt2:
-                temp.append(df[df['SN_ASVCO2'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            df = filter_func(df, filt_cols, filts)
 
-            temp = []
-
-            for var in filt3:
-                temp.append(df[df['ASVCO2_firmware'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
-
-            temp = []
-
-            for var in filt4:
-                temp.append(df[df['last_ASVCO2_validation'] == var])
-            df = pd.merge(df, pd.concat(temp), how='right')
+            # temp = []
+            #
+            # for var in filt2:
+            #     temp.append(df[df['SN_ASVCO2'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt3:
+            #     temp.append(df[df['ASVCO2_firmware'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
+            #
+            # temp = []
+            #
+            # for var in filt4:
+            #     temp.append(df[df['last_ASVCO2_validation'] == var])
+            # df = pd.merge(df, pd.concat(temp), how='right')
 
         # if we are just changing pages, then we need to refresh the filter card
         else:
@@ -1189,7 +1210,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                     )
 
         return dcc.Graph(figure=load_plots), empty_tables, filt_card
-
 
     # enforce filter return as list
     if not isinstance(filt1, list):
