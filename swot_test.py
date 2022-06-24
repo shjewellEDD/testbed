@@ -62,9 +62,9 @@ colors = {'background': '#111111', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                requests_pathname_prefix='/swot/test/',
+                requests_pathname_prefix='/swot/test/',
                 external_stylesheets=[dbc.themes.SLATE])
-#server = app.server
+server = app.server
 
 auth = dash_auth.BasicAuth(app, access_keys)
 
