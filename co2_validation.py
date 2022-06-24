@@ -5,8 +5,9 @@ TODO:
     Double check filters on histogram, particularly reference range
     Summary table ref range doesn't have '0 to 750' option
     Plots and filters do not match after changing Display. How to fix this?
+        Similar, errors when loading summary tables
     The general callback enforces all filters to singletons instead of lists.
-        Is this encessary?
+        Is this necessary?
     When the LiCOR is not calibrated it will return -50, we should filter these out by standard
         Look into pump state to find the super high residuals (4000+ values)
             Is this being fixed at the ERDDAP level?
@@ -23,6 +24,7 @@ from plotly.subplots import make_subplots
 from dash import html as dhtml
 
 import data_import
+import numpy as np
 
 state_select_vars = ['INSTRUMENT_STATE', 'last_ASVCO2_validation', 'CO2LastZero', 'ASVCO2_firmware',
                      'CO2DETECTOR_serialnumber', 'ASVCO2_ATRH_serialnumber', 'ASVCO2_O2_serialnumber',
@@ -290,6 +292,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         :return:
         '''
         nonlocal filt1, filt2, filt3, filt4, filt5
+        filt_cols = ['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
 
         # get dataset
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
@@ -311,8 +314,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
-
-            filt_cols = ['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
             filts = [filt1, filt2, filt3]
 
             df = filter_func(df, filt_cols, filts)
@@ -357,17 +358,29 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         epoff = df[df['INSTRUMENT_STATE'] == 'EPOFF']
         apoff = df[df['INSTRUMENT_STATE'] == 'APOFF']
 
-        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='EPOFF', hoverinfo='x+y+name',
+        hovertemplate = f'CO2_REF_LAB: %{{x}}<br>CO2_RESIDUAL_MEAN_ASVCO2: %{{y}}<br>{filt_cols[0]}: %{{customdata[0]}}<br>' \
+                        f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}'
+
+        custom_e = list(zip(epoff[filt_cols[0]], epoff[filt_cols[1]], epoff[filt_cols[2]]))
+        custom_a = list(zip(apoff[filt_cols[0]], apoff[filt_cols[1]], apoff[filt_cols[2]]))
+
+        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_RESIDUAL_MEAN_ASVCO2'],
+                               name='EPOFF', customdata=custom_e, hovertemplate=hovertemplate, mode='markers',
+                               marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
+                               name='EPOFF Dry', customdata=custom_e, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_DRY_RESIDUAL_MEAN_ASVCO2'], name='EPOFF Dry', hoverinfo='x+y+name',
+        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
+                               name='EPOFF Dry TCORR', customdata=custom_e, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=epoff['CO2_REF_LAB'], y=epoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='EPOFF Dry TCORR', hoverinfo='x+y+name',
+        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_RESIDUAL_MEAN_ASVCO2'],
+                               name='APOFF', customdata=custom_a, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_RESIDUAL_MEAN_ASVCO2'], name='APOFF', hoverinfo='x+y+name',
+        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
+                               name='APOFF Dry', customdata=custom_a, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_DRY_RESIDUAL_MEAN_ASVCO2'], name='APOFF Dry', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='APOFF Dry TCORR', hoverinfo='x+y+name',
+        load_plots.add_scatter(x=apoff['CO2_REF_LAB'], y=apoff['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
+                               name='APOFF Dry TCORR', customdata=custom_a, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 5}, row=1, col=1)
 
         load_plots['layout'].update(yaxis_title='Residual (ppm)',
@@ -391,6 +404,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         :return:
         '''
         nonlocal filt1, filt2, filt3, filt4, filt5
+        filt_cols = ['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
+        filts = [filt1, filt2, filt3]
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
@@ -410,9 +425,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             if filt1 == [] or filt2 == [] or filt3 == []:
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
-
-            filt_cols =['OUT_OF_RANGE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2']
-            filts = [filt1, filt2, filt3]
 
             df = filter_func(df, filt_cols, filts)
 
@@ -457,19 +469,29 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         zcal = df[df['INSTRUMENT_STATE'] == 'ZPPCAL']
         scal = df[df['INSTRUMENT_STATE'] == 'SPPCAL']
 
-        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_RESIDUAL_MEAN_ASVCO2'], name='ZPPCAL',
-                               hoverinfo='x+y+name', mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_RESIDUAL_MEAN_ASVCO2'], name='SPPCAL',
-                               hoverinfo='x+y+name', mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_DRY_RESIDUAL_MEAN_ASVCO2'], name='ZPPCAL Dry',
-                               hoverinfo='x+y+name', mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_DRY_RESIDUAL_MEAN_ASVCO2'], name='SPPCAL Dry',
-                               hoverinfo='x+y+name', mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='ZPPCAL TCORR',
-                               hoverinfo='x+y+name',
+        hovertemplate = f'CO2 Reference: %{{x}}<br>Residual: %{{y}}<br>{filt_cols[0]}: %{{customdata[0]}}<br>' \
+                        f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}'
+
+        custom_z = list(zip(zcal[filt_cols[0]], zcal[filt_cols[1]], zcal[filt_cols[2]]))
+        custom_s = list(zip(scal[filt_cols[0]], scal[filt_cols[1]], scal[filt_cols[2]]))
+
+        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_RESIDUAL_MEAN_ASVCO2'],
+                               name='ZPPCAL', customdata=custom_z, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='SPPCAL TCORR',
-                               hoverinfo='x+y+name',
+        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_RESIDUAL_MEAN_ASVCO2'],
+                               name='SPPCAL', customdata=custom_s, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
+                               name='ZPPCAL Dry', customdata=custom_z, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
+                               name='SPPCAL Dry', customdata=custom_s, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=zcal['CO2_REF_LAB'], y=zcal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
+                               name='ZPPCAL TCORR', customdata=custom_z, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=scal['CO2_REF_LAB'], y=scal['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
+                               name='SPPCAL TCORR', customdata=custom_s, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 5}, row=1, col=1)
 
         load_plots['layout'].update(
@@ -490,6 +512,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         '''
         nonlocal filt1, filt2, filt3, filt4, filt5
+
+        filt_cols = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation']
+        filts = [filt1, filt2, filt3, filt4]
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2',
                                       'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2',
@@ -512,9 +537,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                            shared_yaxes=False, shared_xaxes=True)
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
-
-            filt_cols = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation']
-            filts = [filt1, filt2, filt3, filt4]
 
             df = filter_func(df, filt_cols, filts)
 
@@ -562,15 +584,23 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                          dcc.Checklist(id='filter5'),
                          dhtml.Button('Update Filter', id='update')]
 
-        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='Residual', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_RESIDUAL_MEAN_ASVCO2'], name='Dry Resid', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 5}, row=1, col=1)
-        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='TCORR Dry Resid', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 5}, row=1, col=1)
+        customdata = list(zip(df[filt_cols[0]], df[filt_cols[1]], df[filt_cols[2]], df[filt_cols[3]]))
 
+        hovertemplate = f'CO2 Reference: %{{x}}<br>Residual: %{{y}} <br> {filt_cols[0]}: %{{customdata[0]}}<br>' \
+                        f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}<br>' \
+                        f'{filt_cols[3]}: %{{customdata[3]}}'
+
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], name='Residual',
+                               customdata=customdata, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_RESIDUAL_MEAN_ASVCO2'], name='Dry Resid',
+                               customdata=customdata, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 5}, row=1, col=1)
+        load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], name='TCORR Dry Resid',
+                               customdata=customdata, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 5}, row=1, col=1)
         load_plots.add_scatter(x=df['CO2_REF_LAB'], y=df['CO2_RESIDUAL_STDDEV_ASVCO2'], name='Residual STDDEV',
-                               hoverinfo='x+y+name',
+                               customdata=customdata, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 5}, row=2, col=1)
 
         load_plots['layout'].update(yaxis1_title='CO2 Residuals (ppm)',
@@ -599,7 +629,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         '''
         nonlocal filt1, filt2, filt3, filt4, filt5
 
-        df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
+        filt_cols = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation',
+                     'INSTRUMENT_STATE']
+        filts = [filt1, filt2, filt3, filt4, filt5]
+
+        df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'INSTRUMENT_STATE',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_RESIDUAL_STDDEV_ASVCO2',
                                       'SN_ASVCO2', 'ASVCO2_firmware', 'CO2DETECTOR_firmware', 'last_ASVCO2_validation'])
 
@@ -619,9 +653,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                            shared_yaxes=False, shared_xaxes=True)
 
                 return dcc.Graph(figure=load_plots), empty_tables,  filt_card
-
-            filt_cols = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation', 'INSTRUMENT_STATE']
-            filts = [filt1, filt2, filt3, filt4, filt5]
 
             df = filter_func(df, filt_cols, filts)
 
@@ -678,13 +709,24 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                          dhtml.Button('Update Filter', id='update')]
 
         # plotting block
+        customdata = list(zip(df[filt_cols[0]], df[filt_cols[1]], df[filt_cols[2]], df[filt_cols[3]], df[filt_cols[4]]))
 
-        load_plots.add_scatter(x=df['time'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'], error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
-                               name='Residual', hoverinfo='x+y+name', mode='markers', marker={'size': 4}, row=1, col=1)
-        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_RESIDUAL_MEAN_ASVCO2'], error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
-                               name='Dry Residual', hoverinfo='x+y+name', mode='markers', marker={'size': 4}, row=1, col=1)
-        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'], error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
-                               name='Dry TCORR Residual', hoverinfo='x+y+name', mode='markers', marker={'size': 4}, row=1, col=1)
+        hovertemplate = f'CO2 Reference: %{{x}}<br>Residual: %{{y}} <br> {filt_cols[0]}: %{{customdata[0]}}<br>' \
+                        f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}<br>' \
+                        f'{filt_cols[3]}: %{{customdata[3]}} <br> {filt_cols[4]}: %{{customdata[4]}}'
+
+        load_plots.add_scatter(x=df['time'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'],
+                               error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
+                               name='Residual', customdata=customdata, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 4}, row=1, col=1)
+        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
+                               error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
+                               name='Dry Residual', customdata=customdata, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 4}, row=1, col=1)
+        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
+                               error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
+                               customdata=customdata, hovertemplate=hovertemplate,
+                               name='Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
 
         load_plots['layout'].update(
             yaxis_title='Residual w/ Standard Deviation (ppm)'
@@ -1125,6 +1167,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         nonlocal filt1, filt2, filt3, filt4, filt5
 
+        filt_cols = ['SN_ASVCO2', 'ASVCO2_firmware', 'last_ASVCO2_validation']
+        filts = [filt2, filt3, filt4]
+
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
                                       'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'SN_ASVCO2', 'ASVCO2_firmware',
@@ -1144,9 +1189,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             if filt1 == [] or filt2 == [] or filt3 == [] or filt4 == [] or filt5 == []:
 
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
-
-            filt_cols = ['SN_ASVCO2', 'ASVCO2_firmware', 'last_ASVCO2_validation']
-            filts = [filt2, filt3, filt4]
 
             df = filter_func(df, filt_cols, filts)
 
@@ -1198,11 +1240,15 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         data_mean = df.groupby('last_ASVCO2_validation').mean()
         data_stddev = df.groupby('last_ASVCO2_validation').std()
 
-        data_labels = dict(zip(data_mean.index, data_mean.index))
+        customdata = list(zip(df[filt_cols[0]], df[filt_cols[1]], df[filt_cols[2]]))
+
+        hovertemplate = f'CO2 Reference: %{{x}}<br>Residual: %{{y}} <br> {filt_cols[0]}: %{{customdata[0]}}<br>' \
+                        f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}'
 
         load_plots.add_scatter(x=data_mean['CO2_REF_LAB'], y=data_mean[ploty], name=ploty,
                                error_y=dict(array=data_stddev[ploty]),
-                               hoverinfo='x+y+name', mode='markers', marker={'size': 5}, row=1, col=1)
+                               customdata=customdata, hovertemplate=hovertemplate,
+                               mode='markers', marker={'size': 5}, row=1, col=1)
 
         load_plots['layout'].update(
                                     yaxis_title='Residual (ppm)',
