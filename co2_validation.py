@@ -24,7 +24,6 @@ from plotly.subplots import make_subplots
 from dash import html as dhtml
 
 import data_import
-import numpy as np
 
 state_select_vars = ['INSTRUMENT_STATE', 'last_ASVCO2_validation', 'CO2LastZero', 'ASVCO2_firmware',
                      'CO2DETECTOR_serialnumber', 'ASVCO2_ATRH_serialnumber', 'ASVCO2_O2_serialnumber',
