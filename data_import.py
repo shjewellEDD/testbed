@@ -2,6 +2,9 @@
 ERDDAP reader archetype file.
 
 TODO:
+    Too many similarly-named functions, prune them or rename them
+        ret_raw_vars, gen_raw_vars, ret_vars, ret_drop_vars
+        get_data, ret_data
     Need exception handler for bad urls
     Do we need the Prawler specific functions, or should those be offloaded
         Prawer specific fuctions should have date guards added
@@ -29,7 +32,6 @@ def gen_erddap_date(edate):
               + str(edate.second).zfill(2) + "Z")
 
     return erdate
-
 
 # generates datetime.datetime object from ERDDAP compatable date
 def from_erddap_date(edate):
@@ -76,8 +78,8 @@ def erddap_url_date(in_date):
 
 
 ''' 
-class used for holding useful information about the ERDDAP databases
 ========================================================================================================================
+class used for holding useful information about the ERDDAP databases
 '''
 
 class Dataset:
@@ -117,7 +119,11 @@ class Dataset:
 
     def date_guard(self, in_date):
         '''
-        Our datasets love to send us data from the future. Let's stop that, okay?
+        Our datasets love to send us data from the future. Let's filter those out, okay?
+
+        Issue: Time moves forward. As the erroneous dates switch from future to pass, this function will cease to filter
+        them out. Is there a way to eliminate them? ID# may be linear, so elminating non-linear date/id pairs might be a
+        way.
         :param in_date:
         :return: datetime.datetime
         '''
@@ -153,9 +159,7 @@ class Dataset:
 
                     self.raw_vars.append(item[2:-2])
 
-
         return self.raw_vars
-
 
     #opens metadata page and returns start and end datestamps
     def data_start(self):
@@ -173,7 +177,6 @@ class Dataset:
 
         return from_erddap_date(page[indx+1:endx-1])
 
-
     def data_end(self):
 
         '''
@@ -189,7 +192,6 @@ class Dataset:
         endx = page.find('"', indx+1)
 
         return self.date_guard(from_erddap_date(page[indx+1:endx-1]))
-
 
     def get_data(self, **kwargs):
         '''
@@ -264,7 +266,6 @@ class Dataset:
             self.data['timestring'] = self.data['time'].dt.strftime('%Y-%m-%d %H:%M')
 
         return self.data
-
 
     def ret_data(self, **kwargs):
         '''
@@ -342,6 +343,59 @@ class Dataset:
             vars.append(var)
 
         return vars
+
+    def gen_metadata(self):
+        '''
+        Uses URL to generate a nested list of meta data,including long_name, unit, min and max
+
+        Shouldn't be used with the date guard and other functions as there are multiple time variables and those above
+        functions are targeted specific, let's call them, "useful" locations
+
+        :return:
+        '''
+
+        def get_metadata(url):
+            if '.' in url[-4:]:
+                return (requests.get(url[:-3] + "das")).text
+
+            return (requests.get(url + ".das")).text
+
+        def word_processor(word_in):
+            return word_in.replace(' ', '').replace('"', '')
+
+        page = get_metadata(self.url)
+
+        sects = page.split('{')
+        meta_data = dict()
+
+        for n, chunk in enumerate(sects):
+
+            # this is arbitrary and may miss things
+            if 12 < len(chunk) < 1000:
+
+                name = sects[n - 1].split('\n')[-1]
+                temp = {'long_name': '',
+                        'min': '',
+                        'max': ''}
+
+                lines = chunk.split(';')
+
+                for line in lines:
+                    words = line.split(' ')
+
+                    if 'actual_range' in line:
+                        temp['min'] = word_processor(words[-2])
+                        temp['max'] = word_processor(words[-1])
+
+                    if 'long_name' in line:
+                        temp['long_name'] = word_processor(words[-1])
+
+                    if 'units' in line:
+                        temp['units'] = word_processor(words[-1])
+
+                meta_data[word_processor(name)] = temp
+
+        return meta_data
 
     def trips_per_day(self, w_start, w_end):
         '''
