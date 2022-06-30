@@ -1,16 +1,15 @@
 '''
 TODO:
-    Features:
-        Authentication
-        Handing off between dashboards OR combine into a single dashboard
-    Improvement:
-        Date errors:
-            M200 science has a bunch of dates from the 70s and 80s
-            How do we deal with this
-            Just drop?
-            Linearly interpolate?
-    Bugs:
-
+    Add config file, it should contain=
+        Constant dicts and lists
+        Authentication information
+    Interactivity
+        Select prowler from map
+    Analysis page
+        Select set, get stats + histogram
+        Select point, get all other points from
+    Hoverdata for the map
+    Use Tracy's email to add correct headers and footers
 
 '''
 
@@ -18,7 +17,9 @@ import dash
 import dash_auth
 from dash import html as dhtml
 from dash import dcc, dash_table
+from dash.dash_table.Format import Format, Scheme
 from dash.dependencies import Input, Output, State
+import plotly.graph_objects as go
 import plotly.express as px
 # import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
@@ -34,27 +35,63 @@ access_keys = {
     'pmel':    'realize'
 }
 
-prawler = [{'label': 'M200', 'value': 'M200'}]
+prawler = [{'label': 'M200', 'value': 'M200'},
+           {'label': 'TELONAS', 'value': 'TELONAS'}]
 
-subset = {'M200':   [{'label':   'M200 Eng', 'value': 'M200Eng'},
-                    {'label':   'M200 Sci', 'value': 'M200Sci'}
-                    ]
+subset = {'M200':    [{'label':  'M200 Engineering',    'value': 'M200Eng'},
+                      {'label':  'M200 Science',        'value': 'M200Sci'}],
+          'TELONAS': [{'label':  'TELO Engineering',    'value': 'TELOEng'},
+                      {'label':  'TELO Science',        'value': 'TELOSci'},
+                      {'label':  'TELO Load',           'value': 'TELOLoad'},
+                      {'label':  'TELO Barometry',      'value': 'TELOBaro'}]
           }
 
+sets = list(subset.keys())
+
+set_reverse = {'M200Eng':  {'prawler': 'M200',    'name': 'M200 Engineering'},
+               'M200Sci':  {'prawler': 'M200',    'name': 'M200 Science'},
+               'TELOEng':  {'prawler': 'TELONAS', 'name': 'TELO Engineering'},
+               'TELOSci':  {'prawler': 'TELONAS', 'name': 'TELO Science'},
+               'TELOLoad': {'prawler': 'TELONAS', 'name': 'TELO Load'},
+               'TELOBaro': {'prawler': 'TELONAS', 'name': 'TELO Barometry'}}
 
 '''
 ========================================================================================================================
 Start Dashboard
 '''
 
-dataset_dict = {
+url_dict = {
             'M200Eng': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv',
-            'M200Sci': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWC_M200.csv'
+            'M200Sci': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWC_M200.csv',
+            'TELOEng': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/prawler_eng_TELONAS2.csv',
+            'TELOSci': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELONAS2_PRAWC_NAS2.csv',
+            'TELOLoad': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELONAS2_LOAD_NAS2.csv',
+            'TELOBaro': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/prawler_baro_TELONAS2.csv'
             }
 
+lat_lons = dict()
 
+for key, url in url_dict.items():
 
-graph_config = {'modeBarButtonsToRemove' : ['hoverCompareCartesian','select2d', 'lasso2d'],
+    dset = data_import.Dataset(url)
+    meta = dset.gen_metadata()
+
+    lat_lons[key] = {'lat': (float(meta['latitude']['max']) + float(meta['latitude']['min'])) / 2,
+                     'lon': (float(meta['longitude']['max']) + float(meta['longitude']['min'])) / 2,
+                     'pid': set_reverse[key]['prawler'],
+                     'name': set_reverse[key]['name']}
+
+lat_lon_df = pd.DataFrame(lat_lons).transpose()
+lat_lon_df['size'] = [1]*len(lat_lon_df)
+
+map_columns = [
+    dict(id='pid', name='Prawler ID'),
+    dict(id='name', name='Set Name'),
+    dict(id='lat', name='Latitude', type='numeric', format=Format(precision=5, scheme=Scheme.decimal)),
+    dict(id='lon', name='Longitude', type='numeric', format=Format(precision=6, scheme=Scheme.decimal))
+]
+
+graph_config = {'modeBarButtonsToRemove' : ['hoverCompareCartesian', 'select2d', 'lasso2d'],
                 'doubleClick':  'reset+autosize', 'toImageButtonOptions': { 'height': None, 'width': None, },
                 'displaylogo': False}
 
@@ -71,20 +108,48 @@ auth = dash_auth.BasicAuth(app, access_keys)
 
 external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
 
+tools_card = dbc.Card([
+    dbc.CardBody(
+        dash_table.DataTable(id='map-table',
+                             data=lat_lon_df.to_dict('records'),
+                             columns=map_columns,
+                             row_selectable='single',
+                             cell_selectable=False,
+                             style_table={'backgroundColor': colors['background'],
+                                          'overflow'       :'auto'},
+                             style_cell={'backgroundColor': colors['background'],
+                                         'textColor':       colors['text']}
+                             )
+    )]
+)
+
 set_card = dbc.Card([
         dbc.CardBody(
             children=[
-                dhtml.H5('Plot'),
-                dcc.Dropdown(
-                    id="select_eng",
-                    options=subset['M200'],
-                    value=subset['M200'][0]['value'],
-                    clearable=False
-                ),
-                dcc.Dropdown(
-                    id="select_var",
-                    clearable=False
-                )
+                dbc.Row(children=[
+                    dbc.Col(children=[
+                        dhtml.H5('Pralwer'),
+                        dcc.Dropdown(
+                            id='select_prawl',
+                            options=prawler,
+                            value=prawler[0]['value'],
+                            clearable=False
+                        )
+                    ]),
+                    dbc.Col(children=[
+                        dhtml.H5('Plot'),
+                        dcc.Dropdown(
+                            id='select_set',
+                            options=subset[sets[0]],
+                            value=subset[sets[0]][0]['value'],
+                            clearable=False
+                        ),
+                        dcc.Dropdown(
+                            id="select_var",
+                            clearable=False
+                        )
+                    ])
+                ])
             ]
         )
 ])
@@ -94,8 +159,8 @@ overlay_card = dbc.Card([
             children=[
                 dhtml.H5('Overlay'),
                 dcc.Dropdown(
-                    id="overlay_prawler",
-                    options=subset['M200'],
+                    id='overlay_set',
+                    options=subset[sets[0]],
                     clearable=True
                 ),
                 dcc.Dropdown(
@@ -145,46 +210,150 @@ graph_card = dbc.Card(
     ])]
 )
 
-app.layout = dhtml.Div([
-    dbc.Container([
-            dbc.Row([dhtml.H1('Prawler M200')]),
-            dbc.Row([
-                dbc.Col(dhtml.Div([date_card])),
-                dbc.Col(dhtml.Div([set_card])),
-                dbc.Col(dhtml.Div([overlay_card]))
-            ]),
-            dbc.Row(children=[
-                dbc.Col(graph_card, width=9),
-                dbc.Col(table_card, width=3)
+prawl_map = go.Figure(data=px.scatter_geo(
+    data_frame=lat_lon_df,
+    lat=lat_lon_df['lat'],
+    lon=lat_lon_df['lon'],
+    size=lat_lon_df['size'],
+    size_max=5,
+    opacity=1,
+    hover_data={'lat': False, 'lon': False},
+#     hover_data={'size': False},
+#    color=df['type'],
+#    color_discrete_sequence=px.colors.qualitative.D3
+))
+
+
+prawl_map.update_layout(
+    #autosize=True,
+    width=1200,
+    margin=dict(l=5, r=5, b=5, t=5),
+    plot_bgcolor=colors['background'],
+    paper_bgcolor=colors['background'],
+    font_color=colors['text'],
+    legend_title_text='',
+    legend=dict(
+        yanchor='top',
+        y=0.99,
+        xanchor='right',
+        x=0.99
+    ),
+    geo=dict(
+        showland=True,
+        landcolor="slategray",
+        showocean=True,
+        oceancolor='darkslateblue',
+        subunitcolor="slategray",
+        countrycolor="slategray",
+        showlakes=True,
+        lakecolor="slategray",
+        showsubunits=True,
+        showcountries=True,
+        showframe=False,
+        scope='world',
+        resolution=50,
+        projection=dict(
+            #type='conic conformal',
+            type='transverse mercator'
+            #rotation_lon=-100
+        ),
+        lonaxis=dict(
+            showgrid=True,
+            gridwidth=0.5,
+            range=[-200.0, -100.0],
+            dtick=5
+        ),
+        lataxis=dict(
+            showgrid=True,
+            gridwidth=0.5,
+            range=[35.0, 65.0],
+            dtick=5
+        )
+    )
+)
+
+map_card = dbc.Card(
+    [dbc.CardBody([dcc.Graph(figure=prawl_map)]
+    )]
+)
+
+load_tab = dcc.Tab(label='Load', value='load',
+        children=[
+            dbc.Card(
+                dbc.CardBody(children=[
+                    dbc.Row(
+                        children=[
+                            dbc.Col(dhtml.Div([date_card])),
+                            dbc.Col(dhtml.Div([set_card])),
+                            dbc.Col(dhtml.Div([overlay_card]))
+                        ]
+                    ),
+                    dbc.Row(children=[
+                        dbc.Col(graph_card, width=8),
+                        dbc.Col(table_card, width=4)
                     ])
-               ]),
-    dbc.Row([
-        dbc.Col(width=1, children=
-        [
-            dhtml.Img(src='https://www.pmel.noaa.gov/sites/default/files/PMEL-meatball-logo-sm.png', height=100,
-                     width=100)
-        ]),
-        dbc.Col(width=11, children=[
-            dhtml.Div(children=[
-                dcc.Link('National Oceanic and Atmospheric Administration', href='https://www.noaa.gov/'),
+                ])
+            )
+        ])
+
+map_tab = dcc.Tab(label='Map', value='prawl-map',
+    children=[
+        dbc.Card(
+            dbc.CardBody(
+                children=[
+                dbc.Row([
+                    dbc.Col(tools_card, width=4),
+                    dbc.Col(map_card, width=8)
+                ])
+                ]
+            )
+        ),
+    ])
+
+footer = dbc.Card(
+    dbc.CardBody([
+        dbc.Row([
+            dbc.Col(width=1, children=
+            [
+                dhtml.Img(src='https://www.pmel.noaa.gov/sites/default/files/PMEL-meatball-logo-sm.png', height=100,
+                         width=100)
             ]),
-            dhtml.Div(children=[
-                dcc.Link('Pacific Marine Environmental Laboratory', href='https://www.pmel.noaa.gov/'),
-            ]),
-            dhtml.Div(children=[
-                dcc.Link('oar.pmel.webmaster@noaa.gov', href='mailto:oar.pmel.webmaster@noaa.gov')
-            ]),
-            dhtml.Div(children=[
-                dcc.Link('DOC |', href='https://www.commerce.gov/'),
-                dcc.Link(' NOAA |', href='https://www.noaa.gov/'),
-                dcc.Link(' OAR |', href='https://www.research.noaa.gov/'),
-                dcc.Link(' PMEL |', href='https://www.pmel.noaa.gov/'),
-                dcc.Link(' Privacy Policy |', href='https://www.noaa.gov/disclaimer'),
-                dcc.Link(' Disclaimer |', href='https://www.noaa.gov/disclaimer'),
-                dcc.Link(' Accessibility', href='https://www.pmel.noaa.gov/accessibility')
+            dbc.Col(width=11, children=[
+                dhtml.Div(children=[
+                    dcc.Link('National Oceanic and Atmospheric Administration', href='https://www.noaa.gov/'),
+                ]),
+                dhtml.Div(children=[
+                    dcc.Link('Pacific Marine Environmental Laboratory', href='https://www.pmel.noaa.gov/'),
+                ]),
+                dhtml.Div(children=[
+                    dcc.Link('oar.pmel.webmaster@noaa.gov', href='mailto:oar.pmel.webmaster@noaa.gov')
+                ]),
+                dhtml.Div(children=[
+                    dcc.Link('DOC |', href='https://www.commerce.gov/'),
+                    dcc.Link(' NOAA |', href='https://www.noaa.gov/'),
+                    dcc.Link(' OAR |', href='https://www.research.noaa.gov/'),
+                    dcc.Link(' PMEL |', href='https://www.pmel.noaa.gov/'),
+                    dcc.Link(' Privacy Policy |', href='https://www.noaa.gov/disclaimer'),
+                    dcc.Link(' Disclaimer |', href='https://www.noaa.gov/disclaimer'),
+                    dcc.Link(' Accessibility', href='https://www.pmel.noaa.gov/accessibility')
+                ])
             ])
         ])
     ])
+)
+
+app.layout = dhtml.Div([
+    dbc.Row([dhtml.H1('SWOT Prawlers')]),
+    dbc.Card(
+        dbc.CardBody(
+    #dbc.Container([(
+        dcc.Tabs(id='selected-tab', value='prawl-map',
+                 children=[
+                     map_tab,
+                     load_tab
+                ])
+        )),
+    footer
 ])
 
 
@@ -193,6 +362,31 @@ app.layout = dhtml.Div([
 Callbacks
 '''
 
+#prawler selection
+@app.callback(
+    [Output('select_set',   'options'),
+     Output('select_prawl', 'value'),
+     Output('selected-tab', 'value'),
+     Output('overlay_set',  'options')],
+    [Input('select_prawl',  'value'),
+     Input('map-table',     'selected_rows')
+     ]
+)
+
+def select_prawler(drop_val, table_val):
+
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if (changed_id == '.') or (changed_id == 'map-table.derived_virtual_row_ids'):
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+    elif (changed_id == 'map-table.selected_rows') and (table_val == [None]):
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+    elif (changed_id == 'map-table.selected_rows'):
+        drop_val = lat_lon_df.iloc[table_val[0]]['pid']
+
+    return subset[drop_val], drop_val, 'load', subset[drop_val]
+
 #engineering data selection
 @app.callback(
     [Output('select_var', 'options'),
@@ -200,17 +394,17 @@ Callbacks
     Output('date-picker', 'max_date_allowed'),
     Output('date-picker', 'start_date'),
     Output('date-picker', 'end_date'),
-    Output('select_var', 'value')],
-    Input('select_eng', 'value'))
+    Output('select_var',  'value')],
+    Input('select_set',   'value'))
 
-def change_prawler(dataset):
+def change_set(dataset):
     '''
     Updates dropdowns and date ranges when prawler dataset is changed.
     :param dataset:
     :return:
     '''
 
-    eng_set = data_import.Dataset(dataset_dict[dataset])
+    eng_set = data_import.Dataset(url_dict[dataset])
 
     min_date_allowed = eng_set.t_start.date()
     max_date_allowed = eng_set.t_end.date()
@@ -224,7 +418,7 @@ def change_prawler(dataset):
 #overlay selection
 @app.callback(
     Output('overlay_var', 'options'),
-    Input('overlay_prawler', 'value')
+    Input('overlay_set', 'value')
 )
 
 def overlay_vars(prawl):
@@ -239,7 +433,7 @@ def overlay_vars(prawl):
 
         return []
 
-    dset = data_import.Dataset(dataset_dict[prawl])
+    dset = data_import.Dataset(url_dict[prawl])
 
     return dset.gen_drop_vars()
 
@@ -249,12 +443,12 @@ def overlay_vars(prawl):
      Output('dtable', 'data'),
      Output('dtable', 'columns'),
      Output('t_mean', 'value')],
-    [Input('select_eng', 'value'),
+    [Input('select_set', 'value'),
      Input('select_var', 'value'),
      Input('overlay_var', 'value'),
      Input('date-picker', 'start_date'),
      Input('date-picker', 'end_date')],
-    State('overlay_prawler', 'value'))
+     State('overlay_set', 'value'))
 
 
 def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
@@ -276,13 +470,13 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
     :return:
     '''
 
-    eng_set = data_import.Dataset(dataset_dict[dataset])
+    eng_set = data_import.Dataset(url_dict[dataset])
     new_data = eng_set.get_data(window_start=start_date, window_end=end_date, variables=[select_var])
 
     #changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if ovr_var:
 
-        ovr_set = data_import.Dataset(dataset_dict[ovr_prawl])
+        ovr_set = data_import.Dataset(url_dict[ovr_prawl])
         ovr_data = ovr_set.get_data(window_start=start_date, window_end=end_date, variables=[ovr_var])
 
         ovr_data.index = ovr_data['time']
