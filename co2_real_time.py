@@ -1,6 +1,11 @@
 '''
 ========================================================================================================================
 Start Dashboard
+
+TODO:
+    Dashboard is running painfully slow, it looks like the datasets are huge
+        Maybe give the user the ability to decimate and control the rate?
+
 '''
 
 import datetime
@@ -16,35 +21,37 @@ from dash import html as dhtml
 
 import data_import
 
-rt_url1 = 'https://data.pmel.noaa.gov/generic/erddap/tabledap/sd_shakedown_collection.csv'
-rt_url2 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1067_2021_post_mission.csv'
-rt_url3 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1030_2021_post_mission.csv'
-url4 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1091_ecmwf_2021.csv'
-url5 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'
-set_loc = 'D:\Data\CO2 Sensor tests\\asvco2_gas_validation_all_fixed_station_mirror.csv'
+# rt_url1 = 'https://data.pmel.noaa.gov/generic/erddap/tabledap/sd_shakedown_collection.csv'
+# rt_url2 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1067_2021_post_mission.csv'
+# rt_url3 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1030_2021_post_mission.csv'
+# url4 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1091_ecmwf_2021.csv'
+# url5 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'
+# set_loc = 'D:\Data\CO2 Sensor tests\\asvco2_gas_validation_all_fixed_station_mirror.csv'
 
 available_sets = [{'label': 'SD Shakedown',   'value': 'https://data.pmel.noaa.gov/generic/erddap/tabledap/sd_shakedown_collection.csv'},
         {'label': 'SD 1067',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1067_2021_post_mission.csv'},
         {'label': 'SD 1030',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1030_2021_post_mission.csv'},
         {'label': 'SD 1091 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1091_ecmwf_2021.csv'},
-        {'label': 'SD 1089 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'}]
+        {'label': 'SD 1089 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'},
+        {'label': 'SD 1033',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1033_tpos_2022.csv'},
+        {'label': 'SD 1052 TPOS',   'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1052_tpos_2022.csv'}]
 
-custom_sets = [{'label': 'XCO2 Mean', 'value': 'co2_raw'},
-        {'label': 'XCO2 Residuals', 'value': 'co2_res'},
-        {'label': 'XCO2 Delta', 'value': 'co2_delt'},
-        {'label': 'CO2 Pres. Mean', 'value': 'co2_det_state'},
-        {'label': 'CO2 Mean', 'value': 'co2_mean_zp'},
-        {'label': 'CO2 Mean SP', 'value': 'co2_mean_sp'},
-        {'label': 'CO2 Span & Temp', 'value': 'co2_span_temp'},
-        {'label': 'CO2 Zero Temp', 'value': 'co2_zero_temp'},
-        {'label': 'CO2 STDDEV', 'value': 'co2_stddev'},
-        {'label': 'O2 Mean', 'value': 'o2_mean'},
-        {'label': 'CO2 Span', 'value': 'co2_span'},
-        {'label': 'CO2 Zero', 'value': 'co2_zero'},
-        {'label': 'Pres Difference', 'value': 'pres_state'}
+custom_sets = [{'label': 'XCO2 Mean',   'value': 'co2_raw'},
+        {'label': 'XCO2 Residuals',     'value': 'co2_res'},
+        {'label': 'XCO2 Delta',         'value': 'co2_delt'},
+        {'label': 'CO2 Pres. Mean',     'value': 'co2_det_state'},
+        {'label': 'CO2 Mean',           'value': 'co2_mean_zp'},
+        {'label': 'CO2 Mean SP',        'value': 'co2_mean_sp'},
+        {'label': 'CO2 Span & Temp',    'value': 'co2_span_temp'},
+        {'label': 'CO2 Zero Temp',      'value': 'co2_zero_temp'},
+        {'label': 'CO2 STDDEV',         'value': 'co2_stddev'},
+        {'label': 'O2 Mean',            'value': 'o2_mean'},
+        {'label': 'CO2 Span',           'value': 'co2_span'},
+        {'label': 'CO2 Zero',           'value': 'co2_zero'},
+        {'label': 'Pres Difference',    'value': 'pres_state'}
         ]
 
-dataset = data_import.Dataset(rt_url1)
+dataset = data_import.Dataset(available_sets[0]['value'])
 
 
 colors = {'background': '#111111', 'text': '#7FDBFF', 'light': '#7f7f7f'}
@@ -114,16 +121,32 @@ app.layout = dhtml.Div([
 Callbacks
 '''
 
+#update date limits when switching sets
+@app.callback(
+    [Output('date-picker', 'start_date'),
+    Output('date-picker', 'end_date'),
+    Output('date-picker', 'max_date_allowed'),
+    Output('date-picker', 'min_date_allowed')],
+    Input('set-select', 'value'))
+
+def change_set(dataset_url):
+
+    dataset = data_import.Dataset(dataset_url)
+
+    min_date_allowed = dataset.t_start.date()
+    max_date_allowed = dataset.t_end.date()
+    end_date = dataset.t_end.date()
+    start_date = end_date - datetime.timedelta(days=14)
+
+    return start_date, end_date, min_date_allowed, max_date_allowed
+
 #engineering data selection
 @app.callback(
     Output('graphs', 'figure'),
     [Input('display-select', 'value'),
-     #Input('set-select', 'value'),
      Input('date-picker', 'start_date'),
      Input('date-picker', 'end_date'),
-     Input('mode-select', 'value')#,
-     #Input('graphs', 'figure')
-     ],
+     Input('mode-select', 'value')],
     State('set-select', 'value'))
 
 def plot_evar(selection, t_start, t_end, colormode, erddap_set):
@@ -149,13 +172,20 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
                                    subplot_titles=("XCO2 DRY", "SSS", "SST"),
                                    shared_yaxes=False, vertical_spacing=0.1)
 
-        load_plots.add_scatter(x=df['time'], y=df['XCO2_DRY_SW_MEAN_ASVCO2'].dropna(), mode='markers',
+        # customdata = list(zip(df[filt_cols[0]], df[filt_cols[1]], df[filt_cols[2]], df[filt_cols[3]]))
+        #
+        # hovertemplate = f'CO2 Reference: %{{x}}<br>Residual: %{{y}} <br> {filt_cols[0]}: %{{customdata[0]}}<br>' \
+        #                 f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}<br>' \
+        #                 f'{filt_cols[3]}: %{{customdata[3]}}'
+
+
+        load_plots.add_scatter(x=df['time'], y=df['XCO2_DRY_SW_MEAN_ASVCO2'], mode='markers',
                                marker={'size': 2}, name='Seawater CO2', hoverinfo='x+y+name', row=1, col=1)
         load_plots.add_scatter(x=df['time'], y=df['XCO2_DRY_AIR_MEAN_ASVCO2'], mode='markers',
                                marker={'size': 2}, name='CO2 Air', hoverinfo='x+y+name', row=1, col=1)
-        load_plots.add_scatter(x=df['time'], y=df['SAL_SBE37_MEAN'].dropna(), mode='markers',
+        load_plots.add_scatter(x=df['time'], y=df['SAL_SBE37_MEAN'], mode='markers',
                                marker={'size': 2}, name='SSS', hoverinfo='x+y+name', row=2, col=1)
-        load_plots.add_scatter(x=df['time'], y=df['TEMP_SBE37_MEAN'].dropna(), mode='markers',
+        load_plots.add_scatter(x=df['time'], y=df['TEMP_SBE37_MEAN'], mode='markers',
                                marker={'size': 2}, name='SST', hoverinfo='x+y+name', row=3, col=1)
 
 
@@ -425,7 +455,7 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
 
         dset = df[df['INSTRUMENT_STATE'] == 'SPOFF']
 
-        co2 = go.Scatter()
+        #co2 = go.Scatter()
 
         load_plots = make_subplots(rows=1, cols=1, shared_xaxes='all', subplot_titles=['SPOFF Temp vs Span'],
                                    shared_yaxes=False, vertical_spacing=0.1)
@@ -653,7 +683,7 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
     plotters.update_layout(
          height=600,
          title=' ',
-         hovermode='x unified',
+         #hovermode='x unified',
          xaxis_showticklabels=True,
          plot_bgcolor=colors[bkgrd_colors[colormode]],
          paper_bgcolor=colors['background'],
