@@ -2,8 +2,6 @@
 Gas Validaiton Dashboard
 
 TODO:
-    Double check filters on histogram, particularly reference range
-    Summary table ref range doesn't have '0 to 750' option
     Plots and filters do not match after changing Display. How to fix this?
         Similar, errors when loading summary tables
     The general callback enforces all filters to singletons instead of lists.
@@ -1116,8 +1114,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         nonlocal filt1, filt2, filt3, filt4, filt5
 
-        filt_cols = ['SN_ASVCO2', 'ASVCO2_firmware', 'last_ASVCO2_validation']
-        filts = [filt2, filt3, filt4]
+        filt_cols = ['SN_ASVCO2', 'ASVCO2_firmware', 'last_ASVCO2_validation', 'CO2DETECTOR_firmware']
+        filts = [filt1, filt2, filt3, filt4]
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
@@ -1141,63 +1139,45 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             df = filter_func(df, filt_cols, filts)
 
-            # temp = []
-            #
-            # for var in filt2:
-            #     temp.append(df[df['SN_ASVCO2'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt3:
-            #     temp.append(df[df['ASVCO2_firmware'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt4:
-            #     temp.append(df[df['last_ASVCO2_validation'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-
         # if we are just changing pages, then we need to refresh the filter card
         else:
 
-            filt_list2 = gen_filt_list('SN_ASVCO2', df)
-            filt_list3 = gen_filt_list('ASVCO2_firmware', df)
-            filt_list4 = gen_filt_list('last_ASVCO2_validation', df)
+            filt_list1 = gen_filt_list('SN_ASVCO2', df)
+            filt_list2 = gen_filt_list('ASVCO2_firmware', df)
+            filt_list3 = gen_filt_list('last_ASVCO2_validation', df)
+            filt_list4 = gen_filt_list('CO2DETECTOR_firmware', df)
 
             filt_card = [dcc.DatePickerRange(id='date-picker'),
-                         dhtml.Label('Out of Range'),
-                         dcc.RadioItems(id='filter1', options=['Dry', 'TCORR'], value='Dry'),
                          dhtml.Label('Serial #'),
-                         dcc.Dropdown(id='filter2', options=filt_list2, value=df['SN_ASVCO2'].unique(), multi=True,
+                         dcc.Dropdown(id='filter1', options=filt_list1, value=df['SN_ASVCO2'].unique(), multi=True,
                                       clearable=True),
                          dhtml.Label('Firmware'),
-                         dcc.Dropdown(id='filter3', options=filt_list3, value=df['ASVCO2_firmware'].unique(), multi=True,
+                         dcc.Dropdown(id='filter2', options=filt_list2, value=df['ASVCO2_firmware'].unique(), multi=True,
                                       clearable=True),
                          dhtml.Label(id='Last Validation'),
-                         dcc.Dropdown(id='filter4', options=filt_list4, value=df['last_ASVCO2_validation'].unique(),
+                         dcc.Dropdown(id='filter3', options=filt_list3, value=df['last_ASVCO2_validation'].unique(),
+                                      multi=True, clearable=True),
+                         dhtml.Label(id='LiCOR Firmware'),
+                         dcc.Dropdown(id='filter4', options=filt_list4, value=df['CO2DETECTOR_firmware'].unique(),
                                       multi=True, clearable=True),
                          dcc.Checklist(id='filter5'),
                          dhtml.Button('Update Filter', id='update')]
 
-        ploty = 'CO2_DRY_RESIDUAL_MEAN_ASVCO2'
-
-        if filt1 == 'TCORR':
-            ploty = 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'
-
         data_mean = df.groupby('last_ASVCO2_validation').mean()
         data_stddev = df.groupby('last_ASVCO2_validation').std()
 
-        customdata = list(zip(df[filt_cols[0]], df[filt_cols[1]], df[filt_cols[2]]))
+        customdata = list(zip(df[filt_cols[0]], df[filt_cols[1]], df[filt_cols[2]], df[filt_cols[3]]))
 
         hovertemplate = f'CO2 Reference: %{{x}}<br>Residual: %{{y}} <br> {filt_cols[0]}: %{{customdata[0]}}<br>' \
-                        f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}'
+                        f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}' \
+                        f'<br> {filt_cols[3]}: %{{customdata[3]}}'
 
-        load_plots.add_scatter(x=data_mean['CO2_REF_LAB'], y=data_mean[ploty], name=ploty,
-                               error_y=dict(array=data_stddev[ploty]),
-                               customdata=customdata, hovertemplate=hovertemplate,
-                               mode='markers', marker={'size': 5}, row=1, col=1)
+        for resid_type  in ['CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2']:
+
+            load_plots.add_scatter(x=data_mean['CO2_REF_LAB'], y=data_mean[resid_type], name=resid_type,
+                                   error_y=dict(array=data_stddev[resid_type]),
+                                   customdata=customdata, hovertemplate=hovertemplate,
+                                   mode='markers', marker={'size': 5}, row=1, col=1)
 
         load_plots['layout'].update(
                                     yaxis_title='Residual (ppm)',
