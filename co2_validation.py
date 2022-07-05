@@ -631,11 +631,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         nonlocal filt1, filt2, filt3, filt4, filt5
 
         filt_cols = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation',
-                     'INSTRUMENT_STATE']
+                     'CO2_REF_LAB']
         filts = [filt1, filt2, filt3, filt4, filt5]
 
         df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'INSTRUMENT_STATE',
-                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_RESIDUAL_STDDEV_ASVCO2',
+                                      'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_REF_LAB',
                                       'SN_ASVCO2', 'ASVCO2_firmware', 'CO2DETECTOR_firmware', 'last_ASVCO2_validation'])
 
         load_plots = make_subplots(rows=1, cols=1,
@@ -677,8 +677,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                          dcc.Dropdown(id='filter4', options=filt_list4, multi=True, clearable=True,
                                        value=list(df['last_ASVCO2_validation'].unique())),
                          dhtml.Label('Instrument State'),
-                         dcc.Checklist(id='filter5', options=['APOFF', 'EPOFF'],
-                                       value=['APOFF', 'EPOFF']),
+                         dcc.Dropdown(id='filter5', options=df['CO2_REF_LAB'].unique(), multi=True, clearable=True,
+                                       value=df['CO2_REF_LAB'].unique()),
                          dhtml.Button('Update Filter', id='update')]
 
         # plotting block
@@ -688,18 +688,22 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                         f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}<br>' \
                         f'{filt_cols[3]}: %{{customdata[3]}} <br> {filt_cols[4]}: %{{customdata[4]}}'
 
-        load_plots.add_scatter(x=df['time'], y=df['CO2_RESIDUAL_MEAN_ASVCO2'],
-                               error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
-                               name='Residual', customdata=customdata, hovertemplate=hovertemplate,
-                               mode='markers', marker={'size': 4}, row=1, col=1)
-        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
-                               error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
-                               name='Dry Residual', customdata=customdata, hovertemplate=hovertemplate,
-                               mode='markers', marker={'size': 4}, row=1, col=1)
-        load_plots.add_scatter(x=df['time'], y=df['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
-                               error_y=dict(array=df['CO2_RESIDUAL_STDDEV_ASVCO2']),
-                               customdata=customdata, hovertemplate=hovertemplate,
-                               name='Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
+        for inst_state in ['APOFF', 'EPOFF']:
+
+            temp = df[df['INSTRUMENT_STATE'] == inst_state]
+
+            load_plots.add_scatter(x=temp['time'], y=temp['CO2_RESIDUAL_MEAN_ASVCO2'],
+                                   error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
+                                   name=f'{inst_state} Residual', customdata=customdata, hovertemplate=hovertemplate,
+                                   mode='markers', marker={'size': 4}, row=1, col=1)
+            load_plots.add_scatter(x=temp['time'], y=temp['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
+                                   error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
+                                   name=f'{inst_state} Dry Residual', customdata=customdata, hovertemplate=hovertemplate,
+                                   mode='markers', marker={'size': 4}, row=1, col=1)
+            load_plots.add_scatter(x=temp['time'], y=temp['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
+                                   error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
+                                   customdata=customdata, hovertemplate=hovertemplate,
+                                   name=f'{inst_state} Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
 
         load_plots['layout'].update(
             yaxis_title='Residual w/ Standard Deviation (ppm)'
@@ -712,9 +716,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         "Residual Histogram"
         Select random variable
         Histogram of marginal probability dists
-
-        TODO:
-            Filters don't work. Why?
 
         :return:
         '''
@@ -744,7 +745,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                 return dcc.Graph(figure=load_plots), empty_tables, filt_card
 
             # ASVCO2_firmware is a special case
-            #filt_cols = ['ASVCO2_firmware', 'INSTRUMENT_STATE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'last_ASVCO2_validation']
             filt_cols = ['ASVCO2_firmware', 'INSTRUMENT_STATE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'last_ASVCO2_validation', 'CO2DETECTOR_firmware']
             filts = [filt1, filt2, filt3, filt4, filt5]
 
