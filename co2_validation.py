@@ -49,7 +49,8 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 
 app = dash.Dash(__name__,
-                meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],                 requests_pathname_prefix='/co2/validation/',
+                meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
+                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
 server = app.server
 
@@ -507,6 +508,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         Residual
         :return:
         TODO:
+            Need to filter by INSTRUMENT_STATE
 
         '''
         nonlocal filt1, filt2, filt3, filt4, filt5
@@ -621,6 +623,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         TODO:
             Filter by CO2_DRY_RESIDUAL_REF_LAB_TAG
+                Plot by TCORR + State, then add the ref tag?
 
         NOTES:
             At test, the Last Validation filter doesn't appear to work.
@@ -653,34 +656,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                 return dcc.Graph(figure=load_plots), empty_tables,  filt_card
 
             df = filter_func(df, filt_cols, filts)
-
-            # for var in filt1:
-            #     temp.append(df[df['SN_ASVCO2'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt2:
-            #     temp.append(df[df['CO2DETECTOR_firmware'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt3:
-            #     temp.append(df[df['ASVCO2_firmware'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt4:
-            #     temp.append(df[df['last_ASVCO2_validation'] == var])
-            #
-            # temp = []
-            #
-            # for var in filt5:
-            #     temp.append(df[df['INSTRUMENT_STATE'] == var])
-            #
-            # df = pd.merge(df, pd.concat(temp), how='right')
 
         else:
 
@@ -739,6 +714,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         Histogram of marginal probability dists
 
         TODO:
+            Filters don't work. Why?
 
         :return:
         '''
@@ -769,35 +745,10 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             # ASVCO2_firmware is a special case
             #filt_cols = ['ASVCO2_firmware', 'INSTRUMENT_STATE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'last_ASVCO2_validation']
-            filt_cols = ['INSTRUMENT_STATE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'last_ASVCO2_validation']
-            filts = [filt2, filt3, filt4]
+            filt_cols = ['ASVCO2_firmware', 'INSTRUMENT_STATE', 'CO2_DRY_RESIDUAL_REF_LAB_TAG', 'last_ASVCO2_validation', 'CO2DETECTOR_firmware']
+            filts = [filt1, filt2, filt3, filt4, filt5]
 
             df = filter_func(df, filt_cols, filts)
-
-            # for var in filt1:
-            #     temp.append(df[df['ASVCO2_firmware'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt2:
-            #     temp.append(df[df['INSTRUMENT_STATE'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt3:
-            #     temp.append(df[df['CO2_DRY_RESIDUAL_REF_LAB_TAG'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt4:
-            #     temp.append(df[df['last_ASVCO2_validation'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-
-            for co2_set in filt1:
-                load_plots.add_trace(go.Histogram(x=df[co2_set], name=co2_set, xbins=dict(size=1)), row=1, col=1)
 
         else:
 
@@ -823,8 +774,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                        value=list(df['CO2DETECTOR_firmware'].unique())),
                          dhtml.Button('Update Filter', id='update')]
 
-            for co2_set in resid_sets:
-                load_plots.add_trace(go.Histogram(x=df[co2_set], name=co2_set, xbins=dict(size=1)), row=1, col=1)
+        for co2_set in resid_sets:
+            load_plots.add_trace(go.Histogram(x=df[co2_set], name=co2_set, xbins=dict(size=1)), row=1, col=1)
 
         load_plots['layout'].update(
             yaxis_title='n readings',
@@ -979,7 +930,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         table_data = {'Both':   pd.DataFrame.from_dict(temp['Both'], orient='index'),
                       'APOFF':  pd.DataFrame.from_dict(temp['APOFF'], orient='index'),
                       'EPOFF':  pd.DataFrame.from_dict(temp['EPOFF'], orient='index')}
-        temp=[]
+        temp = []
 
         if table_data[filt2]['mean'].dropna().empty:
             default[2]['mean'], default[3]['mean'] = '', ''
