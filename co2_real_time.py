@@ -31,8 +31,8 @@ import data_import
 available_sets = [{'label': 'SD Shakedown',   'value': 'https://data.pmel.noaa.gov/generic/erddap/tabledap/sd_shakedown_collection.csv'},
         {'label': 'SD 1067',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1067_2021_post_mission.csv'},
         {'label': 'SD 1030',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1030_2021_post_mission.csv'},
-        {'label': 'SD 1091 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1091_ecmwf_2021.csv'},
-        {'label': 'SD 1089 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'},
+#         {'label': 'SD 1091 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1091_ecmwf_2021.csv'},
+#         {'label': 'SD 1089 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'},
         {'label': 'SD 1033',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1033_tpos_2022.csv'},
         {'label': 'SD 1052 TPOS',   'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1052_tpos_2022.csv'}]
 
@@ -69,7 +69,7 @@ tools_card = dbc.Card(
                 id='date-picker',
                 min_date_allowed=dataset.t_start,
                 max_date_allowed=dataset.t_end,
-                start_date=dataset.t_end - datetime.timedelta(days=14),
+                start_date=dataset.t_end - datetime.timedelta(days=7),
                 end_date=dataset.t_end),
             dhtml.Label(['Select Mission']),
             dcc.Dropdown(
@@ -136,7 +136,7 @@ def change_set(dataset_url):
     min_date_allowed = dataset.t_start.date()
     max_date_allowed = dataset.t_end.date()
     end_date = dataset.t_end.date()
-    start_date = end_date - datetime.timedelta(days=14)
+    start_date = end_date - datetime.timedelta(days=7)
 
     return start_date, end_date, min_date_allowed, max_date_allowed
 
@@ -160,11 +160,6 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
             Secondary: SSS and SST
         '''
 
-        # df = dataset.get_data(variables=['XCO2_DRY_SW_MEAN_ASVCO2',
-        #                                     'XCO2_DRY_AIR_MEAN_ASVCO2',
-        #                                     'SAL_SBE37_MEAN',
-        #                                     'TEMP_SBE37_MEAN'])
-
         df = dataset.get_data(variables=['XCO2_DRY_SW_MEAN_ASVCO2', 'XCO2_DRY_AIR_MEAN_ASVCO2', 'SAL_SBE37_MEAN', 'TEMP_SBE37_MEAN'],
                               window_start=t_start, window_end=t_end)
 
@@ -180,9 +175,9 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
 
 
         load_plots.add_scatter(x=df['time'], y=df['XCO2_DRY_SW_MEAN_ASVCO2'], mode='markers',
-                               marker={'size': 2}, name='Seawater CO2', hoverinfo='x+y+name', row=1, col=1)
+                               marker={'size': 3}, name='Seawater CO2', hoverinfo='x+y+name', row=1, col=1)
         load_plots.add_scatter(x=df['time'], y=df['XCO2_DRY_AIR_MEAN_ASVCO2'], mode='markers',
-                               marker={'size': 2}, name='CO2 Air', hoverinfo='x+y+name', row=1, col=1)
+                               marker={'size': 3}, name='CO2 Air', hoverinfo='x+y+name', row=1, col=1)
         load_plots.add_scatter(x=df['time'], y=df['SAL_SBE37_MEAN'], mode='markers',
                                marker={'size': 2}, name='SSS', hoverinfo='x+y+name', row=2, col=1)
         load_plots.add_scatter(x=df['time'], y=df['TEMP_SBE37_MEAN'], mode='markers',
