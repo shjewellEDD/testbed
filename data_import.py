@@ -15,7 +15,7 @@ TODO:
 import pandas as pd
 import datetime
 import requests
-
+import string
 
 '''
 ========================================================================================================================
@@ -361,7 +361,8 @@ class Dataset:
             return (requests.get(url + ".das")).text
 
         def word_processor(word_in):
-            return word_in.replace(' ', '').replace('"', '')
+            #return word_in.translate(str.maketrans('', '', string.punctuation)).replace(' ', '')
+            return word_in.strip(' ,."\';:')
 
         page = get_metadata(self.url)
 
@@ -391,6 +392,7 @@ class Dataset:
                         temp['long_name'] = word_processor(words[-1])
 
                     if 'units' in line:
+                        # this mutilates datetime units, but those have to dealt with differently anyway...
                         temp['units'] = word_processor(words[-1])
 
                 meta_data[word_processor(name)] = temp

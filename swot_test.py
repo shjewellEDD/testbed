@@ -310,6 +310,21 @@ map_tab = dcc.Tab(label='Map', value='prawl-map',
         ),
     ])
 
+header = dbc.Card(
+    dbc.CardBody([
+        dbc.Row([
+            dbc.Col(width=1, children=
+            [
+                dhtml.Img(src='noaa-logo-rgb-2022.png', height=100,
+                          width=100)
+            ]),
+            dbc.Col(width=11, children=[
+                dhtml.H1('SWOT Prawlers')
+            ])
+        ])
+    ])
+)
+
 footer = dbc.Card(
     dbc.CardBody([
         dbc.Row([
@@ -343,7 +358,7 @@ footer = dbc.Card(
 )
 
 app.layout = dhtml.Div([
-    dbc.Row([dhtml.H1('SWOT Prawlers')]),
+    header,
     dbc.Card(
         dbc.CardBody(
     #dbc.Container([(
