@@ -250,6 +250,10 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
     def filter_func(dat, cols, filt_vars):
         '''
+        TODO:
+            CO2_DRY_RESIDUAL_REF_LAB_TAG has ranges, unfortunaly the residuals corresponding to those are empty
+            So we can catch them and instead make sure that the  CO2_REF_LAB is within those ranges
+
         Filters dataframe and concatenates result
 
         :param dat:
@@ -258,14 +262,28 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         :return:
         '''
 
-        #for filt in filt_vars:
+        ref_ranges = {'0 thru 750 ppm Range':      ['0ppm', '350ppm Nominal', '500ppm Nominal', '100ppm Nominal'],
+                      '0 thru 2 ppm Range':        ['0ppm'],
+                      '100 thru 300 ppm Range':    ['100ppm Nominal'],
+                      '300 thru 775 ppm Range':    ['350ppm Nominal', '500ppm Nominal', '750ppm Nominal'],
+                      '775 thru 1075 ppm Range':   ['1000ppm Nominal'],
+                      '1075 thru 2575 ppm Range':  ['1500ppm Nominal', '2000ppm Nominal']
+                      }
+
         # it's possible we'll have these as a pre-existing dict, rather than needing to generate it on the fly
         for col, filt_by in dict(zip(cols, filt_vars)).items():
 
             temp = []
 
             for var in filt_by:
-                temp.append(dat[dat[col] == var])
+
+                # CO2_DRY_RESIDUAL_REF_LAB_TAG contains ranges (see ref_ranges). These don't actually contain any data,
+                # just NaNs. So we'll just contain the relevant nominal ranges. This does give us this ugly if-then
+                # block, where without it we could do this entire using pandas commands without a loop
+                if var in ref_ranges:
+                    temp.append(dat[dat[col].isin(ref_ranges[var])])
+                else:
+                    temp.append(dat[dat[col] == var])
             dat = pd.merge(dat, pd.concat(temp), how='right')
 
         return dat
@@ -527,28 +545,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             df = filter_func(df, filt_cols, filts)
 
-            # for var in filt1:
-            #     temp.append(df[df['SN_ASVCO2'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt2:
-            #     temp.append(df[df['CO2DETECTOR_firmware'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt3:
-            #     temp.append(df[df['ASVCO2_firmware'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-            #
-            # temp = []
-            #
-            # for var in filt4:
-            #     temp.append(df[df['last_ASVCO2_validation'] == var])
-            # df = pd.merge(df, pd.concat(temp), how='right')
-
         else:
 
             filt_list1 = gen_filt_list('SN_ASVCO2', df)
@@ -609,8 +605,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         :return:
 
         TODO:
-            Filter by CO2_DRY_RESIDUAL_REF_LAB_TAG
-                Plot by TCORR + State, then add the ref tag?
+            STDDEV is all 0. This isn't correct, is it?
 
         NOTES:
             At test, the Last Validation filter doesn't appear to work.
@@ -623,7 +618,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'INSTRUMENT_STATE',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_RESIDUAL_STDDEV_ASVCO2', 'CO2_REF_LAB',
-                                      'SN_ASVCO2', 'ASVCO2_firmware', 'CO2DETECTOR_firmware', 'last_ASVCO2_validation'])
+                                      'SN_ASVCO2', 'ASVCO2_firmware', 'CO2DETECTOR_firmware', 'last_ASVCO2_validation',
+                                      'CO2_DRY_RESIDUAL_REF_LAB_TAG'])
 
         load_plots = make_subplots(rows=1, cols=1,
                                    subplot_titles=['Residual Over Time'],
@@ -663,9 +659,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                          dhtml.Label('Last Validation'),
                          dcc.Dropdown(id='filter4', options=filt_list4, multi=True, clearable=True,
                                        value=list(df['last_ASVCO2_validation'].unique())),
-                         dhtml.Label('Instrument State'),
-                         dcc.Dropdown(id='filter5', options=df['CO2_REF_LAB'].unique(), multi=True, clearable=True,
-                                       value=df['CO2_REF_LAB'].unique()),
+                         dhtml.Label('CO2 Reference Tag'),
+                         dcc.Dropdown(id='filter5', options=df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique(),
+                                      multi=True, clearable=True, value=df['CO2_DRY_RESIDUAL_REF_LAB_TAG'].unique()),
                          dhtml.Button('Update Filter', id='update')]
 
         # plotting block
@@ -679,10 +675,10 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             temp = df[df['INSTRUMENT_STATE'] == inst_state]
 
-            load_plots.add_scatter(x=temp['time'], y=temp['CO2_RESIDUAL_MEAN_ASVCO2'],
-                                   error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
-                                   name=f'{inst_state} Residual', customdata=customdata, hovertemplate=hovertemplate,
-                                   mode='markers', marker={'size': 4}, row=1, col=1)
+            # load_plots.add_scatter(x=temp['time'], y=temp['CO2_RESIDUAL_MEAN_ASVCO2'],
+            #                        error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
+            #                        name=f'{inst_state} Residual', customdata=customdata, hovertemplate=hovertemplate,
+            #                        mode='markers', marker={'size': 4}, row=1, col=1)
             load_plots.add_scatter(x=temp['time'], y=temp['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
                                    error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
                                    name=f'{inst_state} Dry Residual', customdata=customdata, hovertemplate=hovertemplate,
@@ -1094,8 +1090,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
     def summary(dset):
         '''
         TODO:
-            Need to get average for each validation date, a la the summary table
-            Where are the filter label?
 
         Returns
 
@@ -1104,8 +1098,9 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
         nonlocal filt1, filt2, filt3, filt4, filt5
 
-        filt_cols = ['SN_ASVCO2', 'ASVCO2_firmware', 'last_ASVCO2_validation', 'CO2DETECTOR_firmware']
-        filts = [filt1, filt2, filt3, filt4]
+        filt_cols = ['SN_ASVCO2', 'ASVCO2_firmware', 'last_ASVCO2_validation', 'CO2DETECTOR_firmware',
+                     'CO2_DRY_RESIDUAL_REF_LAB_TAG']
+        filts = [filt1, filt2, filt3, filt4, filt5]
 
         df = dset.get_data(variables=['INSTRUMENT_STATE', 'CO2_REF_LAB', 'CO2_RESIDUAL_MEAN_ASVCO2', 'OUT_OF_RANGE',
                                       'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2',
@@ -1162,11 +1157,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         # data_mean = df.groupby('CO2_REF_LAB').mean()
         # data_stddev = df.groupby('CO2_REF_LAB').std()
 
-        customdata = list(zip(df[filt_cols[0]], df[filt_cols[1]], df[filt_cols[2]], df[filt_cols[3]]))
+        customdata = list(zip(df[filt_cols[0]], df[filt_cols[1]], df[filt_cols[2]], df[filt_cols[3]], df[filt_cols[4]]))
 
         hovertemplate = f'CO2 Reference: %{{x}}<br>Residual: %{{y}} <br> {filt_cols[0]}: %{{customdata[0]}}<br>' \
                         f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}' \
-                        f'<br> {filt_cols[3]}: %{{customdata[3]}}'
+                        f'<br> {filt_cols[3]}: %{{customdata[3]}} <br> {filt_cols[4]}: %{{customdata[4]}}'
 
         for resid_type in ['CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2']:
 
@@ -1191,6 +1186,8 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         filt3 = [filt3]
     if not isinstance(filt4, list):
         filt4 = [filt4]
+    if not isinstance(filt5, list):
+        filt5 = [filt5]
 
     def switch_plot(case):
         return {'resids':        off_ref,

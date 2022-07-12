@@ -684,7 +684,7 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
          paper_bgcolor=colors['background'],
          font_color=colors['text'],
          autosize=True,
-         showlegend = False,
+         showlegend=True,
          modebar = {'orientation': 'h'},
          margin = dict(l=25, r=25, b=25, t=25, pad=4)
     )
