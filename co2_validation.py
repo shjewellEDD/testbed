@@ -251,8 +251,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
     def filter_func(dat, cols, filt_vars):
         '''
         TODO:
-            CO2_DRY_RESIDUAL_REF_LAB_TAG has ranges, unfortunaly the residuals corresponding to those are empty
-            So we can catch them and instead make sure that the  CO2_REF_LAB is within those ranges
 
         Filters dataframe and concatenates result
 
@@ -486,7 +484,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                name='ZPPCAL', customdata=custom_z, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 4, 'color': mk_colors[0]}, row=1, col=1)
         load_plots.add_scatter(x=z_mean['CO2_REF_LAB'], y=z_mean['CO2_RESIDUAL_MEAN_ASVCO2'],
-                               error_y=dict(array=z_stddev['CO2_RESIDUAL_MEAN_ASVCO2']),
+                               #error_y=dict(array=z_stddev['CO2_RESIDUAL_MEAN_ASVCO2']),
                                name='Mean ZPPCAL', mode='markers', marker=dict(size=10, color=mk_colors[0],
                                line=dict(width=2)), row=1, col=1)
 
@@ -494,7 +492,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                name='SPPCAL', customdata=custom_s, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 4, 'color': mk_colors[1]}, row=1, col=1)
         load_plots.add_scatter(x=s_mean['CO2_REF_LAB'], y=s_mean['CO2_RESIDUAL_MEAN_ASVCO2'],
-                               error_y=dict(array=s_stddev['CO2_RESIDUAL_MEAN_ASVCO2']),
+                               #error_y=dict(array=s_stddev['CO2_RESIDUAL_MEAN_ASVCO2']),
                                name='Mean SPPCAL', mode='markers', marker=dict(size=10, color=mk_colors[1],
                                line=dict(width=2)), row=1, col=1)
 
@@ -605,11 +603,13 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         :return:
 
         TODO:
-            STDDEV is all 0. This isn't correct, is it?
+            CO2_RESIDUAL_STDDEV_ASVCO2 is all 0. This isn't correct, is it? It is!
+            So, should STDDEV be from CO2_DRY_RESIDUAL_MEAN_ASVCO2
 
         NOTES:
             At test, the Last Validation filter doesn't appear to work.
         '''
+        
         nonlocal filt1, filt2, filt3, filt4, filt5
 
         filt_cols = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation',
@@ -680,11 +680,11 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             #                        name=f'{inst_state} Residual', customdata=customdata, hovertemplate=hovertemplate,
             #                        mode='markers', marker={'size': 4}, row=1, col=1)
             load_plots.add_scatter(x=temp['time'], y=temp['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
-                                   error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
+                                   #error_y=dict(array=temp['CO2_DRY_RESIDUAL_MEAN_ASVCO2']),
                                    name=f'{inst_state} Dry Residual', customdata=customdata, hovertemplate=hovertemplate,
                                    mode='markers', marker={'size': 4}, row=1, col=1)
             load_plots.add_scatter(x=temp['time'], y=temp['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
-                                   error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
+                                   #error_y=dict(array=temp['CO2_DRY_RESIDUAL_MEAN_ASVCO2']),
                                    customdata=customdata, hovertemplate=hovertemplate,
                                    name=f'{inst_state} Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
 
