@@ -28,12 +28,12 @@ import dash_bootstrap_components as dbc
 import data_import
 import datetime
 import pandas as pd
+import configparser
 
-# PASSWORD... given that this is supposed to be more of a token barrier rather than proper security, where should we put
-# this?
-access_keys = {
-    'pmel':    'realize'
-}
+# reads username password pairs from config file
+config = configparser.ConfigParser()
+config.read('swot_config.ini')
+access_keys = {i[0]: i[1] for i in list(config['access_keys'].items())}
 
 prawler = [{'label': 'M200', 'value': 'M200'},
            {'label': 'TELONAS', 'value': 'TELONAS'}]
