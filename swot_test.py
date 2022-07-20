@@ -2,9 +2,6 @@
 TODO:
     Add config file, it should contain=
         Constant dicts and lists
-        Authentication information
-    Interactivity
-        Select prowler from map
     Analysis page
         Select set, get stats + histogram
         Select point, get all other points from
@@ -29,45 +26,39 @@ import data_import
 import datetime
 import pandas as pd
 import configparser
+import numpy as np
 
 # reads username password pairs from config file
 config = configparser.ConfigParser()
 config.read('swot_config.ini')
 access_keys = {i[0]: i[1] for i in list(config['access_keys'].items())}
 
-prawler = [{'label': 'M200', 'value': 'M200'},
-           {'label': 'TELONAS', 'value': 'TELONAS'}]
+# reads in prawler information from a spreadsheet and generates the requisite data structures for Plotly to read
+metadata = pd.read_csv(f'prawlers.csv', index_col='ID')
 
-subset = {'M200':    [{'label':  'M200 Engineering',    'value': 'M200Eng'},
-                      {'label':  'M200 Science',        'value': 'M200Sci'}],
-          'TELONAS': [{'label':  'TELO Engineering',    'value': 'TELOEng'},
-                      {'label':  'TELO Science',        'value': 'TELOSci'},
-                      {'label':  'TELO Load',           'value': 'TELOLoad'},
-                      {'label':  'TELO Barometry',      'value': 'TELOBaro'}]
-          }
+url_dict = dict(zip(metadata.index, metadata['url']))
+prawler = [{'label': name, 'value': name} for name in metadata['prawler'].unique()]
+sets = list(metadata['prawler'].unique())
 
-sets = list(subset.keys())
+subset = dict()
+metanp = metadata.to_numpy()
 
-set_reverse = {'M200Eng':  {'prawler': 'M200',    'name': 'M200 Engineering'},
-               'M200Sci':  {'prawler': 'M200',    'name': 'M200 Science'},
-               'TELOEng':  {'prawler': 'TELONAS', 'name': 'TELO Engineering'},
-               'TELOSci':  {'prawler': 'TELONAS', 'name': 'TELO Science'},
-               'TELOLoad': {'prawler': 'TELONAS', 'name': 'TELO Load'},
-               'TELOBaro': {'prawler': 'TELONAS', 'name': 'TELO Barometry'}}
+for prawl in metadata['prawler'].unique():
 
-'''
-========================================================================================================================
-Start Dashboard
-'''
+    ids = metadata[metadata['prawler'] == prawl].index.to_numpy()
+    names = metadata[metadata['prawler'] == prawl]['name'].to_numpy()
+    temp = []
 
-url_dict = {
-            'M200Eng': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv',
-            'M200Sci': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWC_M200.csv',
-            'TELOEng': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/prawler_eng_TELONAS2.csv',
-            'TELOSci': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELONAS2_PRAWC_NAS2.csv',
-            'TELOLoad': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELONAS2_LOAD_NAS2.csv',
-            'TELOBaro': 'https://data.pmel.noaa.gov/engineering/erddap/tabledap/prawler_baro_TELONAS2.csv'
-            }
+    for n, id in np.ndenumerate(ids):
+        temp.append({'label': names[n], 'value': id})
+
+    subset[prawl] = temp
+
+set_reverse = dict()
+metanp = metadata.to_numpy()
+
+for prawl in metadata.index:
+    set_reverse[prawl] = {'prawler': metadata.loc[prawl]['prawler'], 'name': metadata.loc[prawl]['name']}
 
 lat_lons = dict()
 
@@ -104,7 +95,6 @@ app = dash.Dash(__name__,
 server = app.server
 
 auth = dash_auth.BasicAuth(app, access_keys)
-
 
 external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
 
@@ -421,10 +411,12 @@ def change_set(dataset):
 
     eng_set = data_import.Dataset(url_dict[dataset])
 
-    min_date_allowed = eng_set.t_start.date()
-    max_date_allowed = eng_set.t_end.date()
-    start_date = (eng_set.t_end - datetime.timedelta(days=14)).date()
-    end_date = eng_set.t_end.date()
+    #min_date_allowed = eng_set.t_start.date()
+    #max_date_allowed = eng_set.t_end.date()
+    min_date_allowed = eng_set.data_start()
+    max_date_allowed = eng_set.data_end()
+    start_date = (max_date_allowed - datetime.timedelta(days=14))
+    end_date = max_date_allowed
     first_var = eng_set.ret_vars()[0]
 
     return eng_set.gen_drop_vars(), min_date_allowed, max_date_allowed, start_date, end_date, first_var
