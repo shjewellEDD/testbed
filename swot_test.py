@@ -90,11 +90,11 @@ colors = {'background': '#111111', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/swot/test/',
+#                 requests_pathname_prefix='/swot/test/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+# server = app.server
 
-auth = dash_auth.BasicAuth(app, access_keys)
+# auth = dash_auth.BasicAuth(app, access_keys)
 
 external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
 
@@ -200,6 +200,48 @@ graph_card = dbc.Card(
     ])]
 )
 
+analysis_graph_card = dbc.Card(
+    [dbc.CardBody([
+        dcc.Loading(
+            dcc.Graph(id='analysis_graph')
+        )
+    ])]
+)
+
+analysis_tools_card = dbc.Card([
+    dbc.CardBody(
+        children=[
+            dhtml.H5('Analysis Options'),
+            dcc.Dropdown(id='analysis_options'),
+            dhtml.H2(),
+            dcc.Tabs(
+                children=[
+                dcc.Tab(label='Primary', id='primary_var',
+                    children=[
+                    dash_table.DataTable(id='analysis_table1',
+                                         cell_selectable=False,
+                                         style_table={'backgroundColor': colors['background'],
+                                                      'overflow'       :'auto'},
+                                         style_cell={'backgroundColor': colors['background'],
+                                                     'textColor':       colors['text']}
+                                         )
+                        ]),
+            dcc.Tab(label='Secondary', id='secondary_var',
+                    children=[
+                        dash_table.DataTable(id='analysis_table2',
+                                             cell_selectable=False,
+                                             style_table={'backgroundColor': colors['background'],
+                                                          'overflow': 'auto'},
+                                             style_cell={'backgroundColor': colors['background'],
+                                                         'textColor': colors['text']}
+                                             )
+                    ])
+            ])
+        ]
+    )]
+)
+
+
 prawl_map = go.Figure(data=px.scatter_geo(
     data_frame=lat_lon_df,
     lat=lat_lon_df['lat'],
@@ -286,7 +328,7 @@ load_tab = dcc.Tab(label='Load', value='load',
             )
         ])
 
-map_tab = dcc.Tab(label='Map', value='prawl-map',
+map_tab = dcc.Tab(label='Map', id='prawl-map',
     children=[
         dbc.Card(
             dbc.CardBody(
@@ -300,13 +342,30 @@ map_tab = dcc.Tab(label='Map', value='prawl-map',
         ),
     ])
 
+analysis_tab = dcc.Tab(label='Analysis', id='stats',
+        children=[
+            dbc.Card(
+            dbc.CardBody(
+                children=[
+                    dbc.Row([
+                        dbc.Col(analysis_graph_card, width=8),
+                        dbc.Col(analysis_tools_card, width=4)
+                    ])
+                ]
+            )
+            )
+        ]
+    )
+
 header = dbc.Card(
     dbc.CardBody([
         dbc.Row([
             dbc.Col(width=1, children=
             [
-                dhtml.Img(src='noaa-logo-rgb-2022.png', height=100,
-                          width=100)
+                #dhtml.Img(src='noaa-logo-rgb-2022.png', height=100,
+                #          width=100)
+                dhtml.Img(src='https://www.logolynx.com/images/logolynx/1d/1da94bdb768560696dd9a78fe10dc483.png',
+                          height=100, width=100)
             ]),
             dbc.Col(width=11, children=[
                 dhtml.H1('SWOT Prawlers')
@@ -355,7 +414,8 @@ app.layout = dhtml.Div([
         dcc.Tabs(id='selected-tab', value='prawl-map',
                  children=[
                      map_tab,
-                     load_tab
+                     load_tab,
+                     analysis_tab
                 ])
         )),
     footer
@@ -449,7 +509,10 @@ def overlay_vars(prawl):
     [Output('graph', 'figure'),
      Output('dtable', 'data'),
      Output('dtable', 'columns'),
-     Output('t_mean', 'value')],
+     Output('t_mean', 'value'),
+     Output('analysis_options', 'options'),
+     Output('primary_var', 'children'),
+     Output('secondary_var', 'children')],
     [Input('select_set', 'value'),
      Input('select_var', 'value'),
      Input('overlay_var', 'value'),
@@ -479,6 +542,13 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
 
     eng_set = data_import.Dataset(url_dict[dataset])
     new_data = eng_set.get_data(window_start=start_date, window_end=end_date, variables=[select_var])
+    analysis_plots = [{'label': '',                                'value': False},
+                      {'label': 'Histogram',                       'value': 'hist'},
+                      {'label': 'Difference',                      'value': 'diff'},
+                      {'label': 'Count per Day',                   'value': 'perday'},
+                      {'label': 'Cumulative Probability Function', 'value': 'cdf'}]
+
+    empty_table = dcc.Loading([dash_table.DataTable()])
 
     #changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if ovr_var:
@@ -546,6 +616,13 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
                               color_continuous_scale=colorscale)
             efig.layout['coloraxis']['colorbar']['title']['text'] = ovr_var
 
+            analysis_plots = [{'label': '',                                'value': False},
+                              {'label': 'Histogram',                       'value': 'hist'},
+                              {'label': 'Difference',                      'value': 'diff'},
+                              {'label': 'Count per Day',                   'value': 'perday'},
+                              {'label': 'Cumulative Probability Function', 'value': 'cdf'},
+                              {'label': 'Primary-Overlay Scatter',         'value': 'scat'}]
+
         else:
             efig = px.scatter(new_data, y=select_var, x='time')
 
@@ -576,8 +653,35 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
         yaxis_title=select_var,
     )
 
-    return efig, table_data, columns, t_mean
+    return efig, table_data, columns, t_mean, analysis_plots, empty_table, empty_table
 
+#analysisdata selection
+@app.callback(
+    Output('analysis_graph', 'figure'),
+    [Input('analysis_options', 'value')],
+    [State('select_set', 'value'),
+    State('select_var', 'value'),
+    State('overlay_set', 'value'),
+    State('overlay_var', 'value')]
+)
+def update_analysis(plot_type, primary_set, primary_var, over_set, over_var):
+
+    # escape hatch for setup
+    if primary_var == None:
+        return dash.no_update, dash.no_update, dash.no_update
+
+    set = data_import.Dataset(url_dict[primary_set])
+    data = set.get_data(variables=[primary_var])
+
+    fig = px.histogram(data, y=primary_set)
+
+    fig.update_layout(
+        plot_bgcolor=colors['background'],
+        paper_bgcolor=colors['background'],
+        font_color=colors['text']
+    )
+
+    return dash.no_update, dash.no_update, dash.no_update
 
 if __name__ == '__main__':
     #app.run_server(host='0.0.0.0', port=8050, debug=True)
