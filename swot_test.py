@@ -90,11 +90,11 @@ colors = {'background': '#111111', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                 requests_pathname_prefix='/swot/test/',
+                requests_pathname_prefix='/swot/test/',
                 external_stylesheets=[dbc.themes.SLATE])
-# server = app.server
+server = app.server
 
-# auth = dash_auth.BasicAuth(app, access_keys)
+auth = dash_auth.BasicAuth(app, access_keys)
 
 external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
 
@@ -249,7 +249,9 @@ prawl_map = go.Figure(data=px.scatter_geo(
     size=lat_lon_df['size'],
     size_max=5,
     opacity=1,
-    hover_data={'lat': False, 'lon': False},
+    hover_name='name'
+    #hover_data={'lat': False, 'lon': False},
+
 #     hover_data={'size': False},
 #    color=df['type'],
 #    color_discrete_sequence=px.colors.qualitative.D3
@@ -309,53 +311,44 @@ map_card = dbc.Card(
     )]
 )
 
-load_tab = dcc.Tab(label='Load', value='load',
-        children=[
-            dbc.Card(
-                dbc.CardBody(children=[
-                    dbc.Row(
-                        children=[
-                            dbc.Col(dhtml.Div([date_card])),
-                            dbc.Col(dhtml.Div([set_card])),
-                            dbc.Col(dhtml.Div([overlay_card]))
-                        ]
-                    ),
-                    dbc.Row(children=[
-                        dbc.Col(graph_card, width=8),
-                        dbc.Col(table_card, width=4)
-                    ])
-                ])
-            )
-        ])
-
-map_tab = dcc.Tab(label='Map', id='prawl-map',
-    children=[
-        dbc.Card(
-            dbc.CardBody(
-                children=[
-                dbc.Row([
-                    dbc.Col(tools_card, width=4),
-                    dbc.Col(map_card, width=8)
-                ])
-                ]
-            )
+load_tab = dbc.Card(
+    dbc.CardBody(children=[
+        dbc.Row(
+            children=[
+                dbc.Col(dhtml.Div([date_card])),
+                dbc.Col(dhtml.Div([set_card])),
+                dbc.Col(dhtml.Div([overlay_card]))
+            ]
         ),
+        dbc.Row(children=[
+            dbc.Col(graph_card, width=8),
+            dbc.Col(table_card, width=4)
+        ])
     ])
+)
 
-analysis_tab = dcc.Tab(label='Analysis', id='stats',
+map_tab = dbc.Card(
+    dbc.CardBody(id='map_tab',
         children=[
-            dbc.Card(
-            dbc.CardBody(
-                children=[
-                    dbc.Row([
-                        dbc.Col(analysis_graph_card, width=8),
-                        dbc.Col(analysis_tools_card, width=4)
-                    ])
-                ]
-            )
-            )
+        dbc.Row([
+            dbc.Col(tools_card, width=4),
+            dbc.Col(map_card, width=8)
+        ])
         ]
     )
+)
+
+analysis_tab = dbc.Card(
+    dbc.CardBody(id='analysis-card',
+        children=[
+            dbc.Row([
+                dbc.Col(analysis_graph_card, width=8),
+                dbc.Col(analysis_tools_card, width=4)
+            ])
+        ]
+    )
+)
+
 
 header = dbc.Card(
     dbc.CardBody([
@@ -413,9 +406,9 @@ app.layout = dhtml.Div([
     #dbc.Container([(
         dcc.Tabs(id='selected-tab', value='prawl-map',
                  children=[
-                     map_tab,
-                     load_tab,
-                     analysis_tab
+                     dcc.Tab(label='Map', value='prawl-map', children=[map_tab]),
+                     dcc.Tab(label='Load', value='load', children=[load_tab]),
+                     dcc.Tab(label='Analysis', value='stats', children=[analysis_tab])
                 ])
         )),
     footer
@@ -510,9 +503,7 @@ def overlay_vars(prawl):
      Output('dtable', 'data'),
      Output('dtable', 'columns'),
      Output('t_mean', 'value'),
-     Output('analysis_options', 'options'),
-     Output('primary_var', 'children'),
-     Output('secondary_var', 'children')],
+     Output('analysis_options', 'options')],
     [Input('select_set', 'value'),
      Input('select_var', 'value'),
      Input('overlay_var', 'value'),
@@ -543,12 +534,14 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
     eng_set = data_import.Dataset(url_dict[dataset])
     new_data = eng_set.get_data(window_start=start_date, window_end=end_date, variables=[select_var])
     analysis_plots = [{'label': '',                                'value': False},
-                      {'label': 'Histogram',                       'value': 'hist'},
+                      {'label': 'Sum Histogram',                   'value': 'shist'},
                       {'label': 'Difference',                      'value': 'diff'},
-                      {'label': 'Count per Day',                   'value': 'perday'},
                       {'label': 'Cumulative Probability Function', 'value': 'cdf'}]
 
-    empty_table = dcc.Loading([dash_table.DataTable()])
+    if eng_set.time_flag:
+
+        analysis_plots.append({'label': 'Count Histogram', 'value': 'chist'})
+        analysis_plots.append({'label': 'Count per Day', 'value': 'perday'})
 
     #changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if ovr_var:
@@ -616,12 +609,7 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
                               color_continuous_scale=colorscale)
             efig.layout['coloraxis']['colorbar']['title']['text'] = ovr_var
 
-            analysis_plots = [{'label': '',                                'value': False},
-                              {'label': 'Histogram',                       'value': 'hist'},
-                              {'label': 'Difference',                      'value': 'diff'},
-                              {'label': 'Count per Day',                   'value': 'perday'},
-                              {'label': 'Cumulative Probability Function', 'value': 'cdf'},
-                              {'label': 'Primary-Overlay Scatter',         'value': 'scat'}]
+            analysis_plots.append({'label': 'Primary-Overlay Scatter', 'value': 'scat'})
 
         else:
             efig = px.scatter(new_data, y=select_var, x='time')
@@ -629,21 +617,22 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
         columns = [{"name": 'Date', "id": 'timestring'},
                    {'name': select_var, 'id': select_var}]
 
+        # add row for overlay data
         if ovr_var:
             columns.append({'name': ovr_var, 'id': ovr_var})
 
+        # calculate mean for numeric data
         try:
             t_mean = f'Average {select_var}: {str(round(new_data.loc[:, select_var].mean(), 3))}'
         except TypeError:
             t_mean = ''
-
+        # convert dataframe to table-compatible dictionary
         try:
             table_data = new_data.to_dict('records')
         except TypeError:
             table_data = new_data.to_dict()
 
     if 'depth' in select_var.lower():
-
         efig['layout']['yaxis']['autorange'] = "reversed"
 
     efig.update_layout(
@@ -653,27 +642,132 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
         yaxis_title=select_var,
     )
 
-    return efig, table_data, columns, t_mean, analysis_plots, empty_table, empty_table
+    return efig, table_data, columns, t_mean, analysis_plots
 
 #analysisdata selection
 @app.callback(
-    Output('analysis_graph', 'figure'),
-    [Input('analysis_options', 'value')],
+    [Output('analysis_graph', 'figure'),
+     Output('primary_var', 'children'),
+     Output('secondary_var', 'children')],
+    [Input('analysis_options', 'value'),
+     Input('selected-tab', 'value')],
     [State('select_set', 'value'),
     State('select_var', 'value'),
     State('overlay_set', 'value'),
     State('overlay_var', 'value')]
 )
-def update_analysis(plot_type, primary_set, primary_var, over_set, over_var):
+def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_var):
+    '''
+    Types of analysis graphs are:
+    chist Histogram of counts
+    shist Histogram of sums
+    diff  Plot of differences
+    perday Count per day
+    cdf   Cumulative density function
+    '''
 
-    # escape hatch for setup
-    if primary_var == None:
-        return dash.no_update, dash.no_update, dash.no_update
 
-    set = data_import.Dataset(url_dict[primary_set])
-    data = set.get_data(variables=[primary_var])
+    dataset = data_import.Dataset(url_dict[primary_set])
+    data = dataset.get_data(variables=[primary_var])
 
-    fig = px.histogram(data, y=primary_set)
+    if over_var:
+
+        overset = data_import.Dataset(url_dict[over_set])
+        overdata = dataset.get_data(variables=[over_var])
+
+    primary_analysis_table, secondary_analysis_table = dcc.Loading([dash_table.DataTable()]), \
+                                                       dcc.Loading([dash_table.DataTable()])
+
+    if tab_id != 'stats':
+        return dash.no_update, primary_analysis_table, secondary_analysis_table
+
+    def empty_fig():
+        return px.histogram()
+
+    def count_hist():
+
+        fig = px.histogram(data, x=primary_var)
+
+        fig['layout'].update(
+            yaxis_title=f'Total of {primary_var}',
+            xaxis_title=f'{primary_var}'
+        )
+
+        return fig
+
+    def sum_hist():
+
+        fig = px.histogram(data, x='timestring', y=primary_var)
+
+        fig['layout'].update(
+            yaxis_title=f'Sum of {primary_var}',
+            xaxis_title=f'Date'
+        )
+
+        return fig
+
+    def differential():
+
+        fig = px.histogram(x=data[primary_var].diff())
+
+        fig['layout'].update(
+            yaxis_title=f'Change in {primary_var}',
+            xaxis_title=f'{primary_var}'
+        )
+
+        return fig
+
+    def per_day():
+
+        data['ntrips'] = data[primary_var].diff()
+
+        data['days'] = data.loc[:, 'time'].dt.date
+        perday = pd.DataFrame((data.groupby('days')['ntrips'].size()))
+        perday['days'] = perday.index
+
+        fig = px.histogram(perday, x='days', y='ntrips', nbins=len(perday))
+
+        fig['layout'].update(
+            yaxis_title=f'{primary_var} per day',
+            xaxis_title='Day'
+        )
+
+        return fig
+
+    def cdf_plot():
+        return px.histogram()
+
+    def comp_scatter():
+
+        ovr_set = data_import.Dataset(url_dict[over_set])
+        ovr_data = ovr_set.get_data(variables=[over_var])
+
+        ovr_data.index = ovr_data['time']
+        data.index = data['time']
+
+        ovr_data = pd.concat(map(lambda c: ovr_data[c].dropna().reindex(data['time'], method='nearest'),
+                                 ovr_data.columns), axis=1)
+
+        fig = px.scatter(x=data[primary_var], y=ovr_data[over_var])
+
+        fig['layout'].update(
+            yaxis_title=f'{primary_var}',
+            xaxis_title=f'{over_var}'
+        )
+
+        return fig
+
+    def switch_plot(case):
+        return {None:      empty_fig,
+                'chist':   count_hist,
+                'shist':   sum_hist,
+                'diff':    differential,
+                'perday':  per_day,
+                'cdf':     cdf_plot,
+                'scat':    comp_scatter
+                }.get(case)
+
+    fig = switch_plot(plot_type)()
 
     fig.update_layout(
         plot_bgcolor=colors['background'],
@@ -681,7 +775,30 @@ def update_analysis(plot_type, primary_set, primary_var, over_set, over_var):
         font_color=colors['text']
     )
 
-    return dash.no_update, dash.no_update, dash.no_update
+    table_data = [{'stats': 'Variable Name', 'value': primary_var}]
+    table_data = table_data + [{'stats': key, 'value': value} for key, value in data[primary_var].describe().to_dict().items()]
+    primary_analysis_table = dash_table.DataTable(table_data,
+                                        columns=[{'name': '', 'id': 'stats'},
+                                                 {'name': 'Value', 'id': 'value'}],
+                                        style_table={'backgroundColor': colors['background']},
+                                        style_cell={'backgroundColor': colors['background'],
+                                                      'textColor': colors['text']})
+
+    if over_var:
+
+        second_set = data_import.Dataset(url_dict[over_set])
+        sec_data = second_set.get_data(variables=[over_var])
+
+        table_data = [{'stats': 'Variable Name', 'value': over_var}]
+        table_data = [{'stats': key, 'value': value} for key, value in sec_data[over_var].describe().to_dict().items()]
+        secondary_analysis_table = dash_table.DataTable(table_data,
+                                                      columns=[{'name': '', 'id': 'stats'},
+                                                               {'name': 'Value', 'id': 'value'}],
+                                                      style_table={'backgroundColor': colors['background']},
+                                                      style_cell={'backgroundColor': colors['background'],
+                                                                  'textColor': colors['text']})
+
+    return fig, primary_analysis_table, secondary_analysis_table
 
 if __name__ == '__main__':
     #app.run_server(host='0.0.0.0', port=8050, debug=True)
