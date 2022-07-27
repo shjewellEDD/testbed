@@ -97,6 +97,8 @@ class Dataset:
         self.data = pd.DataFrame()
         self.window_flag = False
         self.time_flag = False
+        #self.t_start = datetime.datetime(year=2016, month=1, day=1, hour=1, minute=0, second=0)     #arbitrary date, which should contain all relevant sets
+        #self.t_end = datetime.datetime.today()
         
         if 'time' in self.raw_vars:
 
@@ -223,7 +225,7 @@ class Dataset:
 
         if self.time_flag:
             spec_url = f'{spec_url}?time'
-            #spec_url = f'{spec_url}?'
+            # spec_url = f'{spec_url}?'
 
             for var in vars:
                 if var is None:
@@ -294,7 +296,7 @@ class Dataset:
         :returns list of dict of variales, ERDDAP compatible
         '''
 
-        skips = ['time', 'NC_GLOBAL'] + kwargs.get('skips', [])
+        skips = ['time', 'NC_GLOBAL', 'latitude', 'longitude', 'timeseries_id'] + kwargs.get('skips', [])
 
         vars = []
 
@@ -407,7 +409,7 @@ class Dataset:
         :return:
         '''
 
-        internal_set =self.data[(w_start <= self.data['datetime']) & (self.data['datetime'] <= w_end)]
+        internal_set = self.data[(w_start <= self.data['datetime']) & (self.data['datetime'] <= w_end)]
         #internal_set['datetime'] = internal_set.loc[:, 'time'].apply(from_erddap_date)
         internal_set['days'] = internal_set.loc[:, 'datetime'].dt.date
         new_df = pd.DataFrame((internal_set.groupby('days')['ntrips'].last()).diff())[1:]
