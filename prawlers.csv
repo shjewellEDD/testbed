@@ -1,0 +1,7 @@
+ID,prawler,name,url
+M200Eng,M200,M200 Engineering,https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWE_M200.csv
+M200Sci,M200,M200 Science,https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELOM200_PRAWC_M200.csv
+TELOEng,TELONAS,TELO Engineering,https://data.pmel.noaa.gov/engineering/erddap/tabledap/prawler_eng_TELONAS2.csv
+TELOSci,TELONAS,TELO Science,https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELONAS2_PRAWC_NAS2.csv
+TELOLoad,TELONAS,TELO Load,https://data.pmel.noaa.gov/engineering/erddap/tabledap/TELONAS2_LOAD_NAS2.csv
+TELOBaro,TELONAS,TELO Barometry,https://data.pmel.noaa.gov/engineering/erddap/tabledap/prawler_baro_TELONAS2.csv
