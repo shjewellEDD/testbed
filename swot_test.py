@@ -27,6 +27,8 @@ import datetime
 import pandas as pd
 import configparser
 import numpy as np
+from empiricaldist import Pmf, Cdf
+from scipy.stats import norm
 
 # reads username password pairs from config file
 config = configparser.ConfigParser()
@@ -90,13 +92,12 @@ colors = {'background': '#111111', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/swot/test/',
+                # requests_pathname_prefix='/swot/test/',
                 external_stylesheets=[dbc.themes.SLATE])
 server = app.server
-
-auth = dash_auth.BasicAuth(app, access_keys)
-
-external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
+# auth = dash_auth.BasicAuth(app, access_keys)
+#
+# external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
 
 tools_card = dbc.Card([
     dbc.CardBody(
@@ -534,9 +535,8 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
     eng_set = data_import.Dataset(url_dict[dataset])
     new_data = eng_set.get_data(window_start=start_date, window_end=end_date, variables=[select_var])
     analysis_plots = [{'label': '',                                'value': False},
-                      {'label': 'Sum Histogram',                   'value': 'shist'},
-                      {'label': 'Difference',                      'value': 'diff'},
-                      {'label': 'Cumulative Probability Function', 'value': 'cdf'}]
+                      {'label': 'Sum Histogram',                   'value': 'shist'}]#,
+                      #{'label': 'Cumulative Probability Function', 'value': 'cdf'}]
 
     if eng_set.time_flag:
 
@@ -670,11 +670,6 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
     dataset = data_import.Dataset(url_dict[primary_set])
     data = dataset.get_data(variables=[primary_var])
 
-    if over_var:
-
-        overset = data_import.Dataset(url_dict[over_set])
-        overdata = dataset.get_data(variables=[over_var])
-
     primary_analysis_table, secondary_analysis_table = dcc.Loading([dash_table.DataTable()]), \
                                                        dcc.Loading([dash_table.DataTable()])
 
@@ -686,7 +681,10 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
 
     def count_hist():
 
-        fig = px.histogram(data, x=primary_var)
+        if data[primary_var].dtype == 'object':
+            fig = px.bar(data, x=primary_var)
+        else:
+            fig = px.histogram(data, x=primary_var)
 
         fig['layout'].update(
             yaxis_title=f'Total of {primary_var}',
@@ -697,7 +695,10 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
 
     def sum_hist():
 
-        fig = px.histogram(data, x='timestring', y=primary_var)
+        if data[primary_var].dtype == 'object':
+            fig = px.bar(data, x='timestring', y=primary_var)
+        else:
+            fig = px.histogram(data, x='timestring', y=primary_var)
 
         fig['layout'].update(
             yaxis_title=f'Sum of {primary_var}',
@@ -708,7 +709,10 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
 
     def differential():
 
-        fig = px.histogram(x=data[primary_var].diff())
+        if data[primary_var].dtype == 'object':
+            fig = px.histogram()
+        else:
+            fig = px.histogram(x=data[primary_var].diff())
 
         fig['layout'].update(
             yaxis_title=f'Change in {primary_var}',
@@ -719,13 +723,17 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
 
     def per_day():
 
-        data['ntrips'] = data[primary_var].diff()
+        if data[primary_var].dtype == 'object':
+            fig = px.histogram()
+        else:
 
-        data['days'] = data.loc[:, 'time'].dt.date
-        perday = pd.DataFrame((data.groupby('days')['ntrips'].size()))
-        perday['days'] = perday.index
+            data['ntrips'] = data[primary_var].diff()
 
-        fig = px.histogram(perday, x='days', y='ntrips', nbins=len(perday))
+            data['days'] = data.loc[:, 'time'].dt.date
+            perday = pd.DataFrame((data.groupby('days')['ntrips'].size()))
+            perday['days'] = perday.index
+
+            fig = px.histogram(perday, x='days', y='ntrips', nbins=len(perday))
 
         fig['layout'].update(
             yaxis_title=f'{primary_var} per day',
@@ -735,7 +743,26 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
         return fig
 
     def cdf_plot():
-        return px.histogram()
+
+        ds = data[primary_var]
+        ds_cdf = Cdf.from_seq(ds)
+
+        x_ds = np.linspace(ds.min(), ds.max())
+        norm_cdf = norm(loc=ds.describe()['mean'], scale=ds.describe()['std']).cdf(x_ds)
+
+        fig = px.line(y=ds_cdf)
+        fig.add_trace(px.line(x=x_ds, y=norm_cdf))
+
+        # how do we add custom labels?
+        # label = f'{primary_var}'
+        # label = 'Normal CDF')
+
+        fig['layout'].update(
+            yaxis_title=f'Cumulative Density Function',
+            xaxis_title=f'{primary_var}'
+        )
+
+        return fig
 
     def comp_scatter():
 

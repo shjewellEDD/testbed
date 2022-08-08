@@ -15,7 +15,7 @@ TODO:
 import pandas as pd
 import datetime
 import requests
-import string
+import urllib
 
 '''
 ========================================================================================================================
@@ -260,7 +260,12 @@ class Dataset:
 
                 spec_url = f'{spec_url}%2C{var}'
 
-        self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
+        # sometimes ERDDAP gets goofy, especially in timestamps. This can cause 404 errors, which break the dashboard
+        # this is a pretty heavy-handed way to deal with them and will slow down the dashboard if invoked.
+        try:
+            self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
+        except urllib.error.HTTPError:
+            self.data = pd.read_csv(self.url, skiprows=[1], low_memory=False)
 
         if self.time_flag:
             temp = self.data['time'].apply(from_erddap_date)
@@ -296,7 +301,7 @@ class Dataset:
         :returns list of dict of variales, ERDDAP compatible
         '''
 
-        skips = ['time', 'NC_GLOBAL', 'latitude', 'longitude', 'timeseries_id'] + kwargs.get('skips', [])
+        skips = ['time', 'NC_GLOBAL', 'latitude', 'longitude', 'timeseries_id', 'profile_id'] + kwargs.get('skips', [])
 
         vars = []
 
