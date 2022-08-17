@@ -6,6 +6,7 @@ TODO:
         ret_raw_vars, gen_raw_vars, ret_vars, ret_drop_vars
         get_data, ret_data
     Need exception handler for bad urls
+        .das urls are opened multiple times; reduce them for performance?
     Do we need the Prawler specific functions, or should those be offloaded
         Prawer specific fuctions should have date guards added
     Maybe make ret_data invoke get_data if self.data is empty?
@@ -148,7 +149,12 @@ class Dataset:
 
         '''
 
-        page = (requests.get(self.url[:-3] + "das")).text
+        try:
+            page = (requests.get(self.url[:-3] + "das")).text
+        except requests.exceptions.SSLError:
+            urllib.request.urlopen(self.url[:-3] + "das")
+            page = (requests.get(self.url[:-3] + "das", verify=False)).text
+
         pages = page.split('\n')
 
         self.raw_vars = []
@@ -171,7 +177,11 @@ class Dataset:
 
         :return:
         '''
-        page = (requests.get(self.url[:-3] + "das")).text
+        try:
+            page = (requests.get(self.url[:-3] + "das")).text
+        except requests.exceptions.SSLError:
+            urllib.request.urlopen(self.url[:-3] + "das")
+            page = (requests.get(self.url[:-3] + "das", verify=False)).text
 
         line = page.find('time_coverage_start')
         indx = page.find('"', line)
@@ -187,7 +197,11 @@ class Dataset:
 
         :return:
         '''
-        page = (requests.get(self.url[:-3] + "das")).text
+        try:
+            page = (requests.get(self.url[:-3] + "das")).text
+        except requests.exceptions.SSLError:
+            urllib.request.urlopen(self.url[:-3] + "das")
+            page = (requests.get(self.url[:-3] + "das", verify=False)).text
 
         line = page.find('time_coverage_end')
         indx = page.find('"', line)
@@ -264,8 +278,14 @@ class Dataset:
         # this is a pretty heavy-handed way to deal with them and will slow down the dashboard if invoked.
         try:
             self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
+        except requests.exceptions.SSLError:
+            urllib.request.urlopen(spec_url)
+            self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
         except urllib.error.HTTPError:
             self.data = pd.read_csv(self.url, skiprows=[1], low_memory=False)
+            self.t_start = self.data['time'].min()
+            self.t_end = self.data['time'].max()
+
 
         if self.time_flag:
             temp = self.data['time'].apply(from_erddap_date)
@@ -363,9 +383,15 @@ class Dataset:
 
         def get_metadata(url):
             if '.' in url[-4:]:
-                return (requests.get(url[:-3] + "das")).text
+                try:
+                    return (requests.get(url[:-3] + "das"))
+                except requests.exceptions.SSLError:
+                    return (requests.get(url[:-3] + "das", verify=False)).text
 
-            return (requests.get(url + ".das")).text
+            try:
+                return (requests.get(url + ".das")).text
+            except requests.exceptions.SSLError:
+                return (requests.get(url + ".das", verify=False)).text
 
         def word_processor(word_in):
             #return word_in.translate(str.maketrans('', '', string.punctuation)).replace(' ', '')
