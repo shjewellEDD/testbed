@@ -34,7 +34,7 @@ urls = [{'label': 'Summary Mirror', 'value': 'https://dunkel.pmel.noaa.gov:9290/
 
 custom_sets = [{'label': 'EPOFF & APOFF vs Ref Gas',    'value': 'resids'},
                {'label': 'ZPCAL & SPPCAL vs Ref Gas',   'value': 'cals'},
-               {'label': 'CO2 AVG & STDDEV',            'value': 'temp resids'},
+               #{'label': 'CO2 AVG & STDDEV',            'value': 'temp resids'},
                {'label': 'Residual vs Time',            'value': 'resid stddev'},
                {'label': 'Residual Histogram',          'value': 'stddev hist'},
                {'label': 'Summary Table',               'value': 'summary table'},
@@ -177,7 +177,6 @@ def set_view(set_val):
     :param set_val:
     :return:
     '''
-
 
     if set_val == "summary table":
 
@@ -484,7 +483,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                name='ZPPCAL', customdata=custom_z, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 4, 'color': mk_colors[0]}, row=1, col=1)
         load_plots.add_scatter(x=z_mean['CO2_REF_LAB'], y=z_mean['CO2_RESIDUAL_MEAN_ASVCO2'],
-                               #error_y=dict(array=z_stddev['CO2_RESIDUAL_MEAN_ASVCO2']),
+                               error_y=dict(array=z_stddev['CO2_RESIDUAL_MEAN_ASVCO2']),
                                name='Mean ZPPCAL', mode='markers', marker=dict(size=10, color=mk_colors[0],
                                line=dict(width=2)), row=1, col=1)
 
@@ -492,7 +491,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                                name='SPPCAL', customdata=custom_s, hovertemplate=hovertemplate,
                                mode='markers', marker={'size': 4, 'color': mk_colors[1]}, row=1, col=1)
         load_plots.add_scatter(x=s_mean['CO2_REF_LAB'], y=s_mean['CO2_RESIDUAL_MEAN_ASVCO2'],
-                               #error_y=dict(array=s_stddev['CO2_RESIDUAL_MEAN_ASVCO2']),
+                               error_y=dict(array=s_stddev['CO2_RESIDUAL_MEAN_ASVCO2']),
                                name='Mean SPPCAL', mode='markers', marker=dict(size=10, color=mk_colors[1],
                                line=dict(width=2)), row=1, col=1)
 
@@ -505,13 +504,14 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
     def multi_ref(dset):
         '''
+        Currently disabled; it's been integrated into the ZPCAL/SPCAL dashboard
+
         "CO2 AVG & STDDEV"
         Select serial, LICOR firmware, ASVCO2 firmware, date range
         Boolean temperature correct residual
         Residual
         :return:
         TODO:
-            Need to filter by INSTRUMENT_STATE
 
         '''
         nonlocal filt1, filt2, filt3, filt4, filt5
@@ -675,17 +675,29 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
 
             temp = df[df['INSTRUMENT_STATE'] == inst_state]
 
+            dry_mean = temp.groupby('last_ASVCO2_validation')['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].mean()
+            dry_stddev = temp.groupby('last_ASVCO2_validation')['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].std()
+            tcorr_mean = temp.groupby('CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2')['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'].mean()
+            tcorr_stddev = temp.groupby('CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2')['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'].std()
+
             # load_plots.add_scatter(x=temp['time'], y=temp['CO2_RESIDUAL_MEAN_ASVCO2'],
             #                        error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
             #                        name=f'{inst_state} Residual', customdata=customdata, hovertemplate=hovertemplate,
             #                        mode='markers', marker={'size': 4}, row=1, col=1)
             load_plots.add_scatter(x=temp['time'], y=temp['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
-                                   #error_y=dict(array=temp['CO2_DRY_RESIDUAL_MEAN_ASVCO2']),
                                    name=f'{inst_state} Dry Residual', customdata=customdata, hovertemplate=hovertemplate,
                                    mode='markers', marker={'size': 4}, row=1, col=1)
             load_plots.add_scatter(x=temp['time'], y=temp['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
-                                   #error_y=dict(array=temp['CO2_DRY_RESIDUAL_MEAN_ASVCO2']),
                                    customdata=customdata, hovertemplate=hovertemplate,
+                                   name=f'{inst_state} Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
+
+            load_plots.add_scatter(x=temp['time'], y=dry_mean.to_list(),
+                                   error_y=dict(array=dry_stddev.to_list()),
+                                   #customdata=customdata, hovertemplate=hovertemplate,
+                                   name=f'{inst_state} Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
+            load_plots.add_scatter(x=temp['time'], y=tcorr_mean.to_list(),
+                                   error_y=dict(array=tcorr_stddev.to_list()),
+                                   #customdata=customdata, hovertemplate=hovertemplate,
                                    name=f'{inst_state} Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
 
         load_plots['layout'].update(

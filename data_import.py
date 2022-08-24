@@ -17,6 +17,7 @@ import pandas as pd
 import datetime
 import requests
 import urllib
+requests.packages.urllib3.disable_warnings()
 
 '''
 ========================================================================================================================
