@@ -385,9 +385,10 @@ class Dataset:
         def get_metadata(url):
             if '.' in url[-4:]:
                 try:
-                    return (requests.get(url[:-3] + "das"))
+                    return requests.get(url[:-3] + "das").text
                 except requests.exceptions.SSLError:
                     return (requests.get(url[:-3] + "das", verify=False)).text
+
 
             try:
                 return (requests.get(url + ".das")).text
