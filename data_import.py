@@ -6,6 +6,8 @@ TODO:
         ret_raw_vars, gen_raw_vars, ret_vars, ret_drop_vars
         get_data, ret_data
     Need exception handler for bad urls
+        Kind of implemented
+        Maybe turn spec_url generator into a function, which can steadily add time if that creates HTTP errors
         .das urls are opened multiple times; reduce them for performance?
     Do we need the Prawler specific functions, or should those be offloaded
         Prawer specific fuctions should have date guards added
@@ -93,8 +95,8 @@ class Dataset:
     '''
 
     def __init__(self, url, window_start=False, window_end=False):
-        #self.url = self.url_check(url)
-        self.url = url
+        self.url = self.parse_url(url)
+        self.metadata = self.get_metadata()
         self.raw_vars = self.get_raw_vars()
         self.data = pd.DataFrame()
         self.window_flag = False
@@ -119,7 +121,24 @@ class Dataset:
     
             else:
                 self.t_end = self.data_end()
-        
+
+    def parse_url(self, url):
+        '''
+        Removes file extension, if there is one
+        '''
+
+        if len(url) - url.rfind('.') > 5:
+            return url
+
+        return url[:url.rfind('.')]
+
+    def get_metadata(self):
+
+        try:
+            return (requests.get(self.url + ".das")).text
+        except requests.exceptions.SSLError:
+            urllib.request.urlopen(self.url + ".das")
+            return (requests.get(self.url + ".das", verify=False)).text
 
     def date_guard(self, in_date):
         '''
@@ -150,13 +169,15 @@ class Dataset:
 
         '''
 
-        try:
-            page = (requests.get(self.url[:-3] + "das")).text
-        except requests.exceptions.SSLError:
-            urllib.request.urlopen(self.url[:-3] + "das")
-            page = (requests.get(self.url[:-3] + "das", verify=False)).text
+        # try:
+        #     page = (requests.get(self.url + ".das")).text
+        # except requests.exceptions.SSLError:
+        #     urllib.request.urlopen(self.url + ".das")
+        #     page = (requests.get(self.url + ".das", verify=False)).text
+        #
+        # pages = page.split('\n')
 
-        pages = page.split('\n')
+        pages = self.metadata.split('\n')
 
         self.raw_vars = []
 
@@ -178,17 +199,21 @@ class Dataset:
 
         :return:
         '''
-        try:
-            page = (requests.get(self.url[:-3] + "das")).text
-        except requests.exceptions.SSLError:
-            urllib.request.urlopen(self.url[:-3] + "das")
-            page = (requests.get(self.url[:-3] + "das", verify=False)).text
+        # try:
+        #     page = (requests.get(self.url + ".das")).text
+        # except requests.exceptions.SSLError:
+        #     urllib.request.urlopen(self.url + ".das")
+        #     page = (requests.get(self.url + ".das", verify=False)).text
+        #
+        # line = page.find('time_coverage_start')
+        # indx = page.find('"', line)
+        # endx = page.find('"', indx+1)
 
-        line = page.find('time_coverage_start')
-        indx = page.find('"', line)
-        endx = page.find('"', indx+1)
+        line = self.metadata.find('time_coverage_start')
+        indx = self.metadata.find('"', line)
+        endx = self.metadata.find('"', indx+1)
 
-        return from_erddap_date(page[indx+1:endx-1])
+        return from_erddap_date(self.metadata[indx+1:endx-1])
 
     def data_end(self):
 
@@ -198,17 +223,21 @@ class Dataset:
 
         :return:
         '''
-        try:
-            page = (requests.get(self.url[:-3] + "das")).text
-        except requests.exceptions.SSLError:
-            urllib.request.urlopen(self.url[:-3] + "das")
-            page = (requests.get(self.url[:-3] + "das", verify=False)).text
+        # try:
+        #     page = (requests.get(self.url + ".das")).text
+        # except requests.exceptions.SSLError:
+        #     urllib.request.urlopen(self.url + ".das")
+        #     page = (requests.get(self.url + ".das", verify=False)).text
 
-        line = page.find('time_coverage_end')
-        indx = page.find('"', line)
-        endx = page.find('"', indx+1)
+        # line = page.find('time_coverage_end')
+        # indx = page.find('"', line)
+        # endx = page.find('"', indx+1)
 
-        return self.date_guard(from_erddap_date(page[indx+1:endx-1]))
+        line = self.metadata.find('time_coverage_end')
+        indx = self.metadata.find('"', line)
+        endx = self.metadata.find('"', indx+1)
+
+        return self.date_guard(from_erddap_date(self.metadata[indx+1:endx-1]))
 
     def get_data(self, **kwargs):
         '''
@@ -236,7 +265,7 @@ class Dataset:
         # duplicate vars cause HTML causes errors, sets don't have duplicates
         vars = set(variables)
 
-        spec_url = f'{self.url}'
+        spec_url = f'{self.url}.csv'
 
         if self.time_flag:
             spec_url = f'{spec_url}?time'
@@ -283,10 +312,9 @@ class Dataset:
             urllib.request.urlopen(spec_url)
             self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
         except urllib.error.HTTPError:
-            self.data = pd.read_csv(self.url, skiprows=[1], low_memory=False)
+            self.data = pd.read_csv(f'{self.url}.csv', skiprows=[1], low_memory=False)
             self.t_start = self.data['time'].min()
             self.t_end = self.data['time'].max()
-
 
         if self.time_flag:
             temp = self.data['time'].apply(from_erddap_date)
@@ -382,26 +410,13 @@ class Dataset:
         :return:
         '''
 
-        def get_metadata(url):
-            if '.' in url[-4:]:
-                try:
-                    return requests.get(url[:-3] + "das").text
-                except requests.exceptions.SSLError:
-                    return (requests.get(url[:-3] + "das", verify=False)).text
-
-
-            try:
-                return (requests.get(url + ".das")).text
-            except requests.exceptions.SSLError:
-                return (requests.get(url + ".das", verify=False)).text
-
         def word_processor(word_in):
             #return word_in.translate(str.maketrans('', '', string.punctuation)).replace(' ', '')
             return word_in.strip(' ,."\';:')
 
-        page = get_metadata(self.url)
+        #page = self.get_metadata(self.url)
 
-        sects = page.split('{')
+        sects = self.metadata.split('{')
         meta_data = dict()
 
         for n, chunk in enumerate(sects):
