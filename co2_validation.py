@@ -63,9 +63,9 @@ mk_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                 requests_pathname_prefix='/co2/validation/',
+                requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-# server = app.server
+server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
