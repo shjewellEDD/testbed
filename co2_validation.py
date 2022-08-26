@@ -30,7 +30,20 @@ state_select_vars = ['INSTRUMENT_STATE', 'last_ASVCO2_validation', 'CO2LastZero'
 
 resid_vars = ['CO2_RESIDUAL_MEAN_ASVCO2', ' CO2_DRY_RESIDUAL_MEAN_ASVCO2', ' CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2']
 
-urls = [{'label': 'Summary Mirror', 'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/asvco2_gas_validation_summary_mirror.csv'}]
+# urls = [{'label': 'Summary Mirror', 'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/asvco2_gas_validation_summary_mirror.csv'}]
+
+urls = []
+
+with open('validation_sets.csv', 'r') as csv:
+
+    for n, line in enumerate(csv.readlines()):
+
+        if n == 0:
+            continue
+
+        urls.append({'label': line.split(',')[0], 'value': line.split(', ')[1]})
+
+raw_urls = pd.read_csv('validation_sets.csv')
 
 custom_sets = [{'label': 'EPOFF & APOFF vs Ref Gas',    'value': 'resids'},
                {'label': 'ZPCAL & SPPCAL vs Ref Gas',   'value': 'cals'},
@@ -50,9 +63,9 @@ mk_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/validation/',
+#                 requests_pathname_prefix='/co2/validation/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+# server = app.server
 
 filter_card = dbc.Card(
     dbc.CardBody(
@@ -250,7 +263,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
     def filter_func(dat, cols, filt_vars):
         '''
         TODO:
-
         Filters dataframe and concatenates result
 
         :param dat:
@@ -284,7 +296,6 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             dat = pd.merge(dat, pd.concat(temp), how='right')
 
         return dat
-
 
     #an empty table for plot displays
     empty_tables = dcc.Loading([dash_table.DataTable(id='tab1'), dash_table.DataTable(id='tab2')])
@@ -613,7 +624,7 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
         nonlocal filt1, filt2, filt3, filt4, filt5
 
         filt_cols = ['SN_ASVCO2', 'CO2DETECTOR_firmware', 'ASVCO2_firmware', 'last_ASVCO2_validation',
-                     'CO2_REF_LAB']
+                     'CO2_DRY_RESIDUAL_REF_LAB_TAG']
         filts = [filt1, filt2, filt3, filt4, filt5]
 
         df = dset.get_data(variables=['CO2_RESIDUAL_MEAN_ASVCO2', 'CO2_DRY_RESIDUAL_MEAN_ASVCO2', 'INSTRUMENT_STATE',
@@ -671,14 +682,15 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
                         f'{filt_cols[1]}: %{{customdata[1]}} <br> {filt_cols[2]}: %{{customdata[2]}}<br>' \
                         f'{filt_cols[3]}: %{{customdata[3]}} <br> {filt_cols[4]}: %{{customdata[4]}}'
 
-        for inst_state in ['APOFF', 'EPOFF']:
+        for n, inst_state in enumerate(['APOFF', 'EPOFF']):
 
             temp = df[df['INSTRUMENT_STATE'] == inst_state]
 
             dry_mean = temp.groupby('last_ASVCO2_validation')['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].mean()
             dry_stddev = temp.groupby('last_ASVCO2_validation')['CO2_DRY_RESIDUAL_MEAN_ASVCO2'].std()
-            tcorr_mean = temp.groupby('CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2')['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'].mean()
-            tcorr_stddev = temp.groupby('CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2')['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'].std()
+            tcorr_mean = temp.groupby('last_ASVCO2_validation')['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'].mean()
+            tcorr_stddev = temp.groupby('last_ASVCO2_validation')['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'].std()
+            time_mean = temp.groupby('last_ASVCO2_validation')['time'].mean()
 
             # load_plots.add_scatter(x=temp['time'], y=temp['CO2_RESIDUAL_MEAN_ASVCO2'],
             #                        error_y=dict(array=temp['CO2_RESIDUAL_STDDEV_ASVCO2']),
@@ -686,19 +698,21 @@ def load_plot(plot_set, plot_fig, im_mode, update, filt1, filt2, filt3, filt4, f
             #                        mode='markers', marker={'size': 4}, row=1, col=1)
             load_plots.add_scatter(x=temp['time'], y=temp['CO2_DRY_RESIDUAL_MEAN_ASVCO2'],
                                    name=f'{inst_state} Dry Residual', customdata=customdata, hovertemplate=hovertemplate,
-                                   mode='markers', marker={'size': 4}, row=1, col=1)
+                                   mode='markers', marker=dict(size=4, color=mk_colors[n*2]), row=1, col=1, )
             load_plots.add_scatter(x=temp['time'], y=temp['CO2_DRY_TCORR_RESIDUAL_MEAN_ASVCO2'],
                                    customdata=customdata, hovertemplate=hovertemplate,
-                                   name=f'{inst_state} Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
+                                   name=f'{inst_state} Dry TCORR Residual', mode='markers', row=1, col=1,
+                                   marker=dict(size= 4, color=mk_colors[(n*2)+1]))
 
-            load_plots.add_scatter(x=temp['time'], y=dry_mean.to_list(),
+            load_plots.add_scatter(x=time_mean, y=dry_mean.to_list(),
                                    error_y=dict(array=dry_stddev.to_list()),
-                                   #customdata=customdata, hovertemplate=hovertemplate,
-                                   name=f'{inst_state} Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
-            load_plots.add_scatter(x=temp['time'], y=tcorr_mean.to_list(),
+                                   mode='markers', marker=dict(size=10, color=mk_colors[n*2], line=dict(width=2)), row=1, col=1,
+                                   name=f'{inst_state} Dry Mean')
+            load_plots.add_scatter(x=time_mean, y=tcorr_mean.to_list(),
                                    error_y=dict(array=tcorr_stddev.to_list()),
-                                   #customdata=customdata, hovertemplate=hovertemplate,
-                                   name=f'{inst_state} Dry TCORR Residual', mode='markers', marker={'size': 4}, row=1, col=1)
+                                   mode = 'markers', marker=dict(size=10, color=mk_colors[(n*2)+1],
+                                                                line=dict(width=2)), row = 1, col = 1,
+                                   name=f'{inst_state} TCORR Mean')
 
         load_plots['layout'].update(
             yaxis_title='Residual w/ Standard Deviation (ppm)'
