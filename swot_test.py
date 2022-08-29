@@ -92,7 +92,7 @@ colors = {'background': '#111111', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                # requests_pathname_prefix='/swot/test/',
+                requests_pathname_prefix='/swot/test/',
                 external_stylesheets=[dbc.themes.SLATE])
 server = app.server
 # auth = dash_auth.BasicAuth(app, access_keys)
@@ -535,7 +535,9 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
     eng_set = data_import.Dataset(url_dict[dataset])
     new_data = eng_set.get_data(window_start=start_date, window_end=end_date, variables=[select_var])
     analysis_plots = [{'label': '',                                'value': False},
-                      {'label': 'Sum Histogram',                   'value': 'shist'}]#,
+                      {'label': 'Sum Histogram',                   'value': 'shist'},
+                      {'label': 'Diff Histogram',                  'value': 'dhist'},
+                      {'label': 'Differential',                    'value': 'diff'}]
                       #{'label': 'Cumulative Probability Function', 'value': 'cdf'}]
 
     if eng_set.time_flag:
@@ -687,6 +689,7 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
             fig = px.histogram(data, x=primary_var)
 
         fig['layout'].update(
+            title=f'Histogram of {primary_var} counts',
             yaxis_title=f'Total of {primary_var}',
             xaxis_title=f'{primary_var}'
         )
@@ -701,7 +704,23 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
             fig = px.histogram(data, x='timestring', y=primary_var)
 
         fig['layout'].update(
+            title=f'Histogram of {primary_var} totals',
             yaxis_title=f'Sum of {primary_var}',
+            xaxis_title=f'Date'
+        )
+
+        return fig
+
+    def diff_hist():
+
+        if data[primary_var].dtype == 'object':
+            fig = px.bar(data, x='timestring', y=primary_var)
+        else:
+            fig = px.histogram(data, x=data[primary_var].diff().abs())
+
+        fig['layout'].update(
+            title=f'Histogram of {primary_var} Differential',
+            yaxis_title=f'Sum of change {primary_var}',
             xaxis_title=f'Date'
         )
 
@@ -712,10 +731,11 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
         if data[primary_var].dtype == 'object':
             fig = px.histogram()
         else:
-            fig = px.histogram(x=data[primary_var].diff())
+            fig = px.histogram(x=data[primary_var].diff().abs())
 
         fig['layout'].update(
-            yaxis_title=f'Change in {primary_var}',
+            title=f'Change in {primary_var}',
+            yaxis_title=f'Counts',
             xaxis_title=f'{primary_var}'
         )
 
@@ -725,7 +745,7 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
 
         if data[primary_var].dtype == 'object':
             fig = px.histogram()
-        else:
+        elif data[primary_var].isnumeric:
 
             data['ntrips'] = data[primary_var].diff()
 
@@ -736,7 +756,8 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
             fig = px.histogram(perday, x='days', y='ntrips', nbins=len(perday))
 
         fig['layout'].update(
-            yaxis_title=f'{primary_var} per day',
+            title=f'{primary_var} Per Day',
+            yaxis_title=f'{primary_var} count',
             xaxis_title='Day'
         )
 
@@ -758,7 +779,8 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
         # label = 'Normal CDF')
 
         fig['layout'].update(
-            yaxis_title=f'Cumulative Density Function',
+            title=f'Cumulative Density Function',
+            yaxis_title=f'CDF',
             xaxis_title=f'{primary_var}'
         )
 
@@ -778,6 +800,7 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
         fig = px.scatter(x=data[primary_var], y=ovr_data[over_var])
 
         fig['layout'].update(
+            title=f'{primary_var} vs. {over_var}',
             yaxis_title=f'{primary_var}',
             xaxis_title=f'{over_var}'
         )
@@ -788,6 +811,7 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
         return {None:      empty_fig,
                 'chist':   count_hist,
                 'shist':   sum_hist,
+                'dhist':   diff_hist,
                 'diff':    differential,
                 'perday':  per_day,
                 'cdf':     cdf_plot,

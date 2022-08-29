@@ -127,6 +127,7 @@ class Dataset:
         Removes file extension, if there is one
         '''
 
+
         if len(url) - url.rfind('.') > 5:
             return url
 

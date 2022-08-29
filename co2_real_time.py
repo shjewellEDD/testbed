@@ -28,13 +28,26 @@ import data_import
 # url5 = 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'
 # set_loc = 'D:\Data\CO2 Sensor tests\\asvco2_gas_validation_all_fixed_station_mirror.csv'
 
-available_sets = [{'label': 'SD Shakedown',   'value': 'https://data.pmel.noaa.gov/generic/erddap/tabledap/sd_shakedown_collection.csv'},
-        {'label': 'SD 1067',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1067_2021_post_mission.csv'},
-        {'label': 'SD 1030',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1030_2021_post_mission.csv'},
-#         {'label': 'SD 1091 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1091_ecmwf_2021.csv'},
-#         {'label': 'SD 1089 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'},
-        {'label': 'SD 1033',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1033_tpos_2022.csv'},
-        {'label': 'SD 1052 TPOS',   'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1052_tpos_2022.csv'}]
+available_sets = []
+
+with open('real_time_sets.csv', 'r') as csv:
+
+    for n, line in enumerate(csv.readlines()):
+
+        if n == 0:
+            continue
+
+        available_sets.append({'label': line.split(',')[0], 'value': line.split(',')[1].strip()})
+
+#raw_urls = pd.read_csv('validation_sets.csv')
+
+# available_sets = [{'label': 'SD Shakedown',   'value': 'https://data.pmel.noaa.gov/generic/erddap/tabledap/sd_shakedown_collection.csv'},
+#         {'label': 'SD 1067',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1067_2021_post_mission.csv'},
+#         {'label': 'SD 1030',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1030_2021_post_mission.csv'},
+# #         {'label': 'SD 1091 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1091_ecmwf_2021.csv'},
+# #         {'label': 'SD 1089 ECMWF',  'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1089_ecmwf_2021.csv'},
+#         {'label': 'SD 1033',        'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1033_tpos_2022.csv'},
+#         {'label': 'SD 1052 TPOS',   'value': 'https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1052_tpos_2022.csv'}]
 
 custom_sets = [{'label': 'XCO2 Mean',   'value': 'co2_raw'},
         {'label': 'XCO2 Residuals',     'value': 'co2_res'},
@@ -54,7 +67,13 @@ custom_sets = [{'label': 'XCO2 Mean',   'value': 'co2_raw'},
 dataset = data_import.Dataset(available_sets[0]['value'])
 
 
-colors = {'background': '#111111', 'text': '#7FDBFF', 'light': '#7f7f7f'}
+# colors = {'background': '#111111', 'text': '#7FDBFF', 'light': '#7f7f7f'}
+
+colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
+          'Light': {'bckgrd': '#FAF9F6', 'text': '#111111'},
+          'Green':  '#2ECC40',
+          'Blue':   '#0000FF',
+          'Red':    '#FF4136'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
@@ -64,7 +83,7 @@ server = app.server
 
 tools_card = dbc.Card(
     dbc.CardBody(
-            style={'backgroundColor': colors['background']},
+            style={'backgroundColor': colors['Dark']['bckgrd']},
             children=[dcc.DatePickerRange(
                 id='date-picker',
                 min_date_allowed=dataset.t_start,
@@ -329,25 +348,29 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
             Primary: CO2DETECTOR_PRESS_MEAN_ASVCO2 for each state
         '''
 
-        df = dataset.get_data(variables=['INSTRUMENT_STATE', 'CO2DETECTOR_PRESS_MEAN_ASVCO2'],
+        df = dataset.get_data(variables=['INSTRUMENT_STATE', 'CO2DETECTOR_PRESS_MEAN_ASVCO2', 'BARO_PRES_MEAN'],
                               window_start=t_start, window_end=t_end)
 
         temp = df[df['INSTRUMENT_STATE'] == 'ZPON']
 
-        load_plots = make_subplots(rows=1, cols=1,
+        load_plots = make_subplots(rows=2, cols=1,
                                    subplot_titles=['Pressure'],
                                    shared_yaxes=False)
 
-        load_plots.add_scatter(x=temp['time'], y=temp['CO2DETECTOR_PRESS_MEAN_ASVCO2'], name='ZPON', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 2}, row=1, col=1)
+        # load_plots.add_scatter(x=temp['time'], y=temp['CO2DETECTOR_PRESS_MEAN_ASVCO2'], name='ZPON', hoverinfo='x+y+name',
+        #                        mode='markers', marker={'size': 2}, row=1, col=1)
 
-        for n in range(1, len(states)):
+        for state in states:
 
-             cur_state = df[df['INSTRUMENT_STATE'] == states[n]]
+             cur_state = df[df['INSTRUMENT_STATE'] == state]
 
              load_plots.add_scatter(x=cur_state['time'], y=cur_state['CO2DETECTOR_PRESS_MEAN_ASVCO2'],
                                      name=states[n], hoverinfo='x+y+name',
                                      mode='markers', marker={'size': 2},  row=1, col=1)
+
+        load_plots.add_scatter(x=cur_state['time'], y=cur_state['BARO_PRES_MEAN'],
+                               name='Baro Mean', hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 4}, row=2, col=1)
 
         load_plots['layout'].update(yaxis_title='CO2 Mean Pressure')
 
@@ -448,16 +471,20 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
                                          'CO2DETECTOR_SPAN_COEFFICIENT_ASVCO2'],
                               window_start=t_start, window_end=t_end)
 
-        dset = df[df['INSTRUMENT_STATE'] == 'SPOFF']
-
-        #co2 = go.Scatter()
-
-        load_plots = make_subplots(rows=1, cols=1, shared_xaxes='all', subplot_titles=['SPOFF Temp vs Span'],
+        load_plots = make_subplots(rows=1, cols=1, shared_xaxes='all', subplot_titles=['Temp vs Span'],
                                    shared_yaxes=False, vertical_spacing=0.1)
 
+        dset = df[df['INSTRUMENT_STATE'] == 'SUMMARY']
+
+        # for state in df['INSTRUMENT_STATE'].unique():
+
+            # dset = df[df['INSTRUMENT_STATE'] == state]
+
+            # print(dset['CO2DETECTOR_SPAN_COEFFICIENT_ASVCO2'].describe())
+
         load_plots.add_scatter(x=dset['CO2DETECTOR_TEMP_MEAN_ASVCO2'], y=dset['CO2DETECTOR_SPAN_COEFFICIENT_ASVCO2'],
-                               name='CO2 Detector', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 2}, row=1, col=1)
+                               name='Span Coefficient', hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 4}, row=1, col=1)
 
         load_plots['layout'].update(xaxis_title='Temp Mean',
                                     yaxis_title='Span Coefficient'
@@ -475,16 +502,20 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
         '''
 
         df = dataset.get_data(variables=['INSTRUMENT_STATE', 'CO2DETECTOR_TEMP_MEAN_ASVCO2',
-                                         'CO2DETECTOR_SPAN_COEFFICIENT_ASVCO2'],
+                                         'CO2DETECTOR_ZERO_COEFFICIENT_ASVCO2'],
                               window_start=t_start, window_end=t_end)
 
-        dset = df[df['INSTRUMENT_STATE'] == 'ZPOFF']
+        dset = df[df['INSTRUMENT_STATE'] == 'SUMMARY']
 
         load_plots = make_subplots(rows=1, cols=1, shared_xaxes='all', subplot_titles=['Zero Coefficient'],
                                    shared_yaxes=False, vertical_spacing=0.1)
 
-        load_plots.add_scatter(x=dset['CO2DETECTOR_TEMP_MEAN_ASVCO2'], y=dset['CO2DETECTOR_SPAN_COEFFICIENT_ASVCO2'],
-                               name='CO2 Detector', hoverinfo='x+y+name',
+        # dset = df[df['INSTRUMENT_STATE'] == state]
+
+        # print(dset['CO2DETECTOR_ZERO_COEFFICIENT_ASVCO2'].describe())
+
+        load_plots.add_scatter(x=dset['CO2DETECTOR_TEMP_MEAN_ASVCO2'], y=dset['CO2DETECTOR_ZERO_COEFFICIENT_ASVCO2'],
+                               name='Zero Coefficient', hoverinfo='x+y+name',
                                mode='markers', marker={'size': 2}, row=1, col=1)
 
         load_plots['layout'].update(xaxis_title='Temp Mean',
@@ -505,7 +536,7 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
         df = dataset.get_data(variables=['INSTRUMENT_STATE', 'CO2_STDDEV_ASVCO2'],
                               window_start=t_start, window_end=t_end)
 
-        load_plots = make_subplots(rows=1, cols=1, shared_xaxes='all', subplot_titles=('CO2 Standard Deviation'),
+        load_plots = make_subplots(rows=1, cols=1, shared_xaxes='all', subplot_titles=['CO2 Standard Deviation'],
                                    shared_yaxes=False, vertical_spacing=0.1)
 
         for n in range(1, len(states)):
@@ -535,10 +566,10 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
         load_plots = make_subplots(rows=2, cols=1, shared_xaxes='all', subplot_titles=['O2 - APOFF', 'O2 -  EPOFF'],
                                    shared_yaxes=False, vertical_spacing=0.1)
 
-        load_plots.add_scatter(x=apoff['time'], y=apoff['O2_MEAN_ASVCO2'], name='SPOFF', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 2}, row=1, col=1)
+        load_plots.add_scatter(x=apoff['time'], y=apoff['O2_MEAN_ASVCO2'], name='APOFF', hoverinfo='x+y+name',
+                               mode='markers', marker={'size': 4}, row=1, col=1)
         load_plots.add_scatter(x=epoff['time'], y=epoff['O2_MEAN_ASVCO2'], name='EPOFF', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 2}, row=2, col=1)
+                               mode='markers', marker={'size': 4}, row=2, col=1)
 
         load_plots['layout'].update(yaxis_title='SPOFF',
                                     yaxis2_title='EPOFF',
@@ -567,10 +598,10 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
 
         load_plots.add_scatter(x=df['time'], y=df['CO2DETECTOR_SPAN_COEFFICIENT_ASVCO2'],
                                name='CO2 Span Coef.', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 2}, row=1, col=1)
+                               mode='markers', marker={'size': 4}, row=1, col=1)
         load_plots.add_scatter(x=dset['time'], y=df['CO2DETECTOR_TEMP_MEAN_ASVCO2'],
                                name='Temp Mean', hoverinfo='x+y+name',
-                               mode='markers', marker={'size': 2}, row=2, col=1)
+                               mode='markers', marker={'size': 4}, row=2, col=1)
 
         load_plots['layout'].update(xaxis2_showticklabels=True,
                                     yaxis2_fixedrange=True,
@@ -680,13 +711,17 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
          title=' ',
          #hovermode='x unified',
          xaxis_showticklabels=True,
-         plot_bgcolor=colors[bkgrd_colors[colormode]],
-         paper_bgcolor=colors['background'],
-         font_color=colors['text'],
+         plot_bgcolor=colors[colormode]['bckgrd'],
+         paper_bgcolor=colors[colormode]['bckgrd'],
+         font_color=colors[colormode]['text'],
+         yaxis_gridcolor=colors[colormode]['text'],
+         xaxis_gridcolor=colors[colormode]['text'],
+         yaxis_zerolinecolor=colors[colormode]['text'],
+         xaxis_zerolinecolor=colors[colormode]['text'],
          autosize=True,
          showlegend=True,
-         modebar = {'orientation': 'h'},
-         margin = dict(l=25, r=25, b=25, t=25, pad=4)
+         modebar={'orientation': 'h'},
+         margin=dict(l=25, r=25, b=25, t=25, pad=4)
     )
 
     return plotters

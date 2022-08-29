@@ -43,8 +43,6 @@ with open('validation_sets.csv', 'r') as csv:
 
         urls.append({'label': line.split(',')[0], 'value': line.split(', ')[1]})
 
-raw_urls = pd.read_csv('validation_sets.csv')
-
 custom_sets = [{'label': 'EPOFF & APOFF vs Ref Gas',    'value': 'resids'},
                {'label': 'ZPCAL & SPPCAL vs Ref Gas',   'value': 'cals'},
                #{'label': 'CO2 AVG & STDDEV',            'value': 'temp resids'},
