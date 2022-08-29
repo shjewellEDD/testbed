@@ -1,0 +1,6 @@
+name, url
+SD Shakedown, https://data.pmel.noaa.gov/generic/erddap/tabledap/sd_shakedown_collection,
+SD 1067 Arctic 2021 OCS Single Beam, https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1067_2021_post_mission,
+SD 1030 Arctic 2021 OCS Single Beam, https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1030_2021_post_mission,
+SD 1033 2022 TPOS PMEL NRT, https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1033_tpos_2022,
+SD 1052 2022 TPOS PMEL NRT, https://dunkel.pmel.noaa.gov:9290/erddap/tabledap/sd1052_tpos_2022,
