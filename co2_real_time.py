@@ -77,9 +77,9 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-#                requests_pathname_prefix='/co2/real_time/',
+                requests_pathname_prefix='/co2/real_time/',
                 external_stylesheets=[dbc.themes.SLATE])
-#server = app.server
+server = app.server
 
 tools_card = dbc.Card(
     dbc.CardBody(
