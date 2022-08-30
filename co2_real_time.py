@@ -77,19 +77,20 @@ colors = {'Dark': {'bckgrd': '#111111', 'text': '#7FDBFF'},
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/co2/real_time/',
+#                requests_pathname_prefix='/co2/real_time/',
                 external_stylesheets=[dbc.themes.SLATE])
-server = app.server
+#server = app.server
 
 tools_card = dbc.Card(
     dbc.CardBody(
             style={'backgroundColor': colors['Dark']['bckgrd']},
             children=[dcc.DatePickerRange(
                 id='date-picker',
-                min_date_allowed=dataset.t_start,
-                max_date_allowed=dataset.t_end,
-                start_date=dataset.t_end - datetime.timedelta(days=7),
-                end_date=dataset.t_end),
+                # min_date_allowed=dataset.t_start,
+                # max_date_allowed=dataset.t_end,
+                # start_date=dataset.t_end - datetime.timedelta(days=7),
+                # end_date=dataset.t_end
+                ),
             dhtml.Label(['Select Mission']),
             dcc.Dropdown(
                     id='set-select',
@@ -152,8 +153,8 @@ def change_set(dataset_url):
 
     dataset = data_import.Dataset(dataset_url)
 
-    min_date_allowed = dataset.t_start.date()
-    max_date_allowed = dataset.t_end.date()
+    max_date_allowed = dataset.t_start.date()
+    min_date_allowed = dataset.t_end.date()
     end_date = dataset.t_end.date()
     start_date = end_date - datetime.timedelta(days=7)
 
