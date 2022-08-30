@@ -19,6 +19,7 @@ import pandas as pd
 import datetime
 import requests
 import urllib
+import ssl
 requests.packages.urllib3.disable_warnings()
 
 '''
@@ -138,6 +139,7 @@ class Dataset:
         try:
             return (requests.get(self.url + ".das")).text
         except requests.exceptions.SSLError:
+            ssl._create_default_https_context = ssl._create_unverified_context
             urllib.request.urlopen(self.url + ".das")
             return (requests.get(self.url + ".das", verify=False)).text
 
@@ -310,6 +312,7 @@ class Dataset:
         try:
             self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
         except requests.exceptions.SSLError:
+            ssl._create_default_https_context = ssl._create_unverified_context
             urllib.request.urlopen(spec_url)
             self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
         except urllib.error.HTTPError:
