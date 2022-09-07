@@ -315,6 +315,7 @@ class Dataset:
             ssl._create_default_https_context = ssl._create_unverified_context
             urllib.request.urlopen(spec_url)
             self.data = pd.read_csv(spec_url, skiprows=[1], low_memory=False)
+        # I am making the assumption here, that a 400 error is due to a malformed URL
         except urllib.error.HTTPError:
             self.data = pd.read_csv(f'{self.url}.csv', skiprows=[1], low_memory=False)
             self.t_start = self.data['time'].min()
