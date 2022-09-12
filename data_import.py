@@ -5,13 +5,7 @@ TODO:
     Too many similarly-named functions, prune them or rename them
         ret_raw_vars, gen_raw_vars, ret_vars, ret_drop_vars
         get_data, ret_data
-    Need exception handler for bad urls
-        Kind of implemented
-        Maybe turn spec_url generator into a function, which can steadily add time if that creates HTTP errors
-        .das urls are opened multiple times; reduce them for performance?
-    Do we need the Prawler specific functions, or should those be offloaded
-        Prawer specific fuctions should have date guards added
-    Maybe make ret_data invoke get_data if self.data is empty?
+    Maybe turn spec_url generator into a function, which can steadily add time if that creates HTTP errors
 
 '''
 
@@ -29,6 +23,10 @@ Helpful functions, mostly for dealing with timestamps
 
 # generates ERDDAP compatable date
 def gen_erddap_date(edate):
+
+    if isinstance(edate, str):
+        return edate
+
     erdate = (str(edate.year) + "-"
               + str(edate.month).zfill(2) + '-'
               + str(edate.day).zfill(2) + "T"
@@ -41,7 +39,7 @@ def gen_erddap_date(edate):
 # generates datetime.datetime object from ERDDAP compatable date
 def from_erddap_date(edate):
 
-    if pd.isna(edate):
+    if pd.isna(edate) or isinstance(edate, datetime.datetime) or isinstance(edate, datetime.date):
         return edate
 
     elif len(edate) > 10:
@@ -102,8 +100,6 @@ class Dataset:
         self.data = pd.DataFrame()
         self.window_flag = False
         self.time_flag = False
-        #self.t_start = datetime.datetime(year=2016, month=1, day=1, hour=1, minute=0, second=0)     #arbitrary date, which should contain all relevant sets
-        #self.t_end = datetime.datetime.today()
         
         if 'time' in self.raw_vars:
 
@@ -160,10 +156,6 @@ class Dataset:
 
         return in_date
 
-    # def url_check(self, try_url):
-    #
-    #     page = (requests.get(try_url[:-3] + "das"))
-
     #reads variables from .das file
     def get_raw_vars(self):
         '''
@@ -171,14 +163,6 @@ class Dataset:
         Generates a list of all variables,
 
         '''
-
-        # try:
-        #     page = (requests.get(self.url + ".das")).text
-        # except requests.exceptions.SSLError:
-        #     urllib.request.urlopen(self.url + ".das")
-        #     page = (requests.get(self.url + ".das", verify=False)).text
-        #
-        # pages = page.split('\n')
 
         pages = self.metadata.split('\n')
 
@@ -202,15 +186,6 @@ class Dataset:
 
         :return:
         '''
-        # try:
-        #     page = (requests.get(self.url + ".das")).text
-        # except requests.exceptions.SSLError:
-        #     urllib.request.urlopen(self.url + ".das")
-        #     page = (requests.get(self.url + ".das", verify=False)).text
-        #
-        # line = page.find('time_coverage_start')
-        # indx = page.find('"', line)
-        # endx = page.find('"', indx+1)
 
         line = self.metadata.find('time_coverage_start')
         indx = self.metadata.find('"', line)
@@ -255,12 +230,18 @@ class Dataset:
         :return:
         '''
 
+        # retries = 0
+        #
+        #
+        # def gen_t_flagged_data():
+
         self.data = pd.DataFrame()
 
         variables = kwargs.get('variables', self.raw_vars)
 
-        self.t_start = kwargs.get('window_start', self.t_start)
-        self.t_end = kwargs.get('window_end', self.t_end)
+        # we'll add a day's buffer to the beginning and end
+        self.t_start = gen_erddap_date(from_erddap_date(kwargs.get('window_start', self.t_start)) - datetime.timedelta(days=1))
+        self.t_end = gen_erddap_date(from_erddap_date(kwargs.get('window_end', self.t_end)) + datetime.timedelta(days=1))
 
         if 'window_start' in kwargs or 'window_end' in kwargs:
             self.window_flag = True
@@ -284,7 +265,7 @@ class Dataset:
                 if var == 'NC_GLOBAL':
                     continue
 
-                # don't try to load non-existant variables, 'kay?
+                # don't try to load non-existent variables, 'kay?
                 if var not in self.raw_vars:
                     continue
 

@@ -36,7 +36,7 @@ config.read('swot_config.ini')
 access_keys = {i[0]: i[1] for i in list(config['access_keys'].items())}
 
 # reads in prawler information from a spreadsheet and generates the requisite data structures for Plotly to read
-metadata = pd.read_csv(f'prawlers.csv', index_col='ID')
+metadata = pd.read_csv(f'swot_prawlers.csv', index_col='ID')
 
 url_dict = dict(zip(metadata.index, metadata['url']))
 prawler = [{'label': name, 'value': name} for name in metadata['prawler'].unique()]
@@ -92,12 +92,10 @@ colors = {'background': '#111111', 'text': '#7FDBFF'}
 
 app = dash.Dash(__name__,
                 meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
-                requests_pathname_prefix='/swot/test/',
+                # requests_pathname_prefix='/swot/test/',
                 external_stylesheets=[dbc.themes.SLATE])
 server = app.server
-# auth = dash_auth.BasicAuth(app, access_keys)
-#
-# external_stylesheets = ['https://codepen.io./chriddyp/pen/bWLwgP.css']
+auth = dash_auth.BasicAuth(app, access_keys)
 
 tools_card = dbc.Card([
     dbc.CardBody(
@@ -288,7 +286,7 @@ prawl_map.update_layout(
         scope='world',
         resolution=50,
         projection=dict(
-            #type='conic conformal',
+            #type='conic conformal',    # the conda version doesn't have this one.
             type='transverse mercator'
             #rotation_lon=-100
         ),
@@ -469,6 +467,11 @@ def change_set(dataset):
     #max_date_allowed = eng_set.t_end.date()
     min_date_allowed = eng_set.data_start()
     max_date_allowed = eng_set.data_end()
+
+    # another guard, just in case
+    if max_date_allowed > datetime.datetime.now():
+        max_date_allowed = datetime.datetime.now()
+
     start_date = (max_date_allowed - datetime.timedelta(days=14))
     end_date = max_date_allowed
     first_var = eng_set.ret_vars()[0]
@@ -544,6 +547,10 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
 
         analysis_plots.append({'label': 'Count Histogram', 'value': 'chist'})
         analysis_plots.append({'label': 'Count per Day', 'value': 'perday'})
+
+    if pd.api.types.is_string_dtype(new_data[select_var]):
+        analysis_plots = [{'label': '',                'value': False},
+                          {'label': 'Count Histogram', 'value': 'chist'}]
 
     #changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if ovr_var:
@@ -656,8 +663,8 @@ def plot_evar(dataset, select_var, ovr_var, start_date, end_date, ovr_prawl):
     [State('select_set', 'value'),
     State('select_var', 'value'),
     State('overlay_set', 'value'),
-    State('overlay_var', 'value')]
-)
+    State('overlay_var', 'value')])
+
 def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_var):
     '''
     Types of analysis graphs are:
@@ -668,6 +675,8 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
     cdf   Cumulative density function
     '''
 
+    if primary_var == None:
+        return dash.no_update, dash.no_update, dash.no_update
 
     dataset = data_import.Dataset(url_dict[primary_set])
     data = dataset.get_data(variables=[primary_var])
@@ -745,7 +754,7 @@ def update_analysis(plot_type, tab_id, primary_set, primary_var, over_set, over_
 
         if data[primary_var].dtype == 'object':
             fig = px.histogram()
-        elif data[primary_var].isnumeric:
+        elif pd.api.types.is_numeric_dtype(data[primary_var]):
 
             data['ntrips'] = data[primary_var].diff()
 
