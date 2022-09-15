@@ -139,7 +139,7 @@ def ls_regression(x, y):
     x_array = np.array(x)
     y_array = np.array(y)
 
-    mx = np.ma.masked_invalid(x_array * y_array)
+    #mx = np.ma.masked_invalid(x_array * y_array)
 
     x_sum = np.sum(x_array)
     y_sum = np.sum(y_array)
@@ -149,7 +149,7 @@ def ls_regression(x, y):
     N = len(x_array)
 
     m = ((N * xy_sum) - (x_sum * y_sum)) / ((N * x_sumsqr) - x_sum ** 2)
-    b = (y_sum - (m * x_sum)) / N
+    b = -1 * (y_sum - (m * x_sum)) / N
 
     return m * x_array - b, x_array
 
@@ -554,13 +554,12 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
             span.append(dt[cols['CO2DETECTOR_SPAN_COEFFICIENT_ASVCO2']])
             no.append(dset[n-1, cols['time']])
 
-        linear_fit, xm = ls_regression(span, temps)
-
-        bins = pd.DataFrame([temps, std, span, min, max, no]).T.dropna(how='any', axis='rows')
+        bins = pd.DataFrame([temps, span, min, max, no]).T
         bins.index = no
-        bins.columns = ['temps', 'Temp_STDDEV', 'span', 'Temp_min', 'Temp_max', 'datetime']
+        bins.columns = ['temps', 'span', 'Temp_min', 'Temp_max', 'datetime']
+        bins = bins.dropna(axis='rows')
 
-        linear_fit = ls_regression(bins['span'], bins['temps'])
+        linear_fit, xm = ls_regression(bins['span'], bins['temps'])
 
         hov_dat = list(zip(min, max, std, no))
 
@@ -573,7 +572,7 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
                                #error_y=dict(array=bins['Temp STDDEV']),
                                mode='markers', marker={'size': mark_size}, row=1, col=1)
 
-        # load_plots.add_scatter(y=linear_fit, x=xm, name='Least Squares Fit', mode='lines', row=1, col=1)
+        load_plots.add_scatter(y=linear_fit, x=xm, name='Least Squares Fit', mode='lines', row=1, col=1)
 
         load_plots['layout'].update(yaxis_title='Temp (°C)',
                                     xaxis_title='Span Coefficient',
@@ -603,7 +602,6 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
 
         temps, span, min, max, std, no = [], [], [], [], [], []
 
-
         for n, dt in enumerate(dset):
 
             if n == 0:
@@ -621,9 +619,12 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
             span.append(dt[cols['CO2DETECTOR_ZERO_COEFFICIENT_ASVCO2']])
             no.append(dset[n-1, cols['time']])
 
-        bins = pd.DataFrame([temps, std, span, min, max, no]).T
+        bins = pd.DataFrame([temps, span, min, max, no]).T
         bins.index = no
-        bins.columns = ['temps', 'Temp STDDEV', 'span', 'Temp min', 'Temp max', 'datetime']
+        bins.columns = ['temps', 'span', 'Temp_min', 'Temp_max', 'datetime']
+        bins = bins.dropna(axis='rows')
+
+        linear_fit, xm = ls_regression(bins['span'], bins['temps'])
 
         hov_dat = list(zip(min, max, std, no))
 
@@ -635,6 +636,8 @@ def plot_evar(selection, t_start, t_end, colormode, erddap_set):
                                # error_y=dict(array=bins['Temp STDDEV']),
                                customdata=hov_dat,
                                mode='markers', marker={'size': mark_size}, row=1, col=1)
+
+        load_plots.add_scatter(y=linear_fit, x=xm, name='Least Squares Fit', mode='lines', row=1, col=1)
 
         load_plots['layout'].update(yaxis_title='ZPOFF Detector Temp (°C)',
                                     xaxis_title='Zero Coefficient',
